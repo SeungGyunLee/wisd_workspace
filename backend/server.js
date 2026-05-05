@@ -3,8 +3,33 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
 
+const http = require('http'); 
+const { Server } = require('socket.io');
+
 const app = express();
 const port = process.env.PORT || 3000;
+
+// --- 기존 app 코드를 http 서버로 감싸줍니다 (추가) ---
+const server = http.createServer(app);
+
+// --- 웹소켓 서버(io) 세팅 (추가) ---
+// 프론트엔드 포트(5173)에서 오는 실시간 연결을 허락해 줍니다.
+const io = new Server(server, {
+    cors: {
+        origin: "http://localhost:5173", 
+        methods: ["GET", "POST", "PUT", "DELETE"]
+    }
+});
+
+// 웹소켓 연결 감지 코드 (누군가 접속하면 실행됨)
+io.on('connection', (socket) => {
+    console.log(`🟢 새 팀원이 실시간 서버에 접속했습니다! (ID: ${socket.id})`);
+
+    // 접속이 끊겼을 때 감지
+    socket.on('disconnect', () => {
+        console.log(`🔴 팀원의 접속이 끊어졌습니다. (ID: ${socket.id})`);
+    });
+});
 
 app.use(cors());
 app.use(express.json()); // 중요: 클라이언트가 보내는 JSON 데이터를 읽기 위해 필요
@@ -123,6 +148,9 @@ app.post('/api/tasks', (req, res) => {
             console.error('에러 발생:', err);
             return res.status(500).json({ error: '할 일 생성에 실패했습니다.' });
         }
+
+        io.emit('task_updated'); //웹소켓 실시간 동기화
+
         res.status(201).json({ 
             message: '할 일이 성공적으로 등록되었습니다!',
             taskId: result.insertId 
@@ -166,6 +194,9 @@ app.put('/api/tasks/:taskId', (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: '해당 ID의 할 일을 찾을 수 없습니다.' });
         }
+
+        io.emit('task_updated');
+
         res.status(200).json({ message: '할 일이 성공적으로 수정되었습니다!' });
     });
 });
@@ -184,6 +215,9 @@ app.delete('/api/tasks/:taskId', (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: '해당 ID의 할 일을 찾을 수 없습니다.' });
         }
+
+        io.emit('task_updated');
+        
         res.status(200).json({ message: '할 일이 성공적으로 삭제되었습니다!' });
     });
 });
@@ -193,6 +227,6 @@ app.get('/', (req, res) => {
     res.send('협업 워크스페이스 백엔드 서버 구동 확인');
 });
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+server.listen(port, () => {
+    console.log(`🚀 서버가 포트 ${port}에서 실행 중입니다! (실시간 웹소켓 포함)`);
 });
