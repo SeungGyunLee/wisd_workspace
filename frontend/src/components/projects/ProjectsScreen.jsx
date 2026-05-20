@@ -1,28 +1,44 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { WisdLogo, WisdIcon } from '../common/Logo'
 import { uid, fmtDate, getAvatarColor, getInitials, getProgress } from '../../utils/helpers'
+import { api } from '../../utils/api'
 
 export default function ProjectsScreen({ user, projects, setProjects, navigateToProject, setScreen, doLogout }) {
   const [showCreate, setShowCreate] = useState(false)
+  useEffect(() => {
+    api('GET', '/api/projects')
+      .then((data) => setProjects(data.map(p => ({
+        ...p,
+        members: [user.id],
+        categories: [],
+        posts: [],
+        createdAt: Date.now(),
+      }))))
+      .catch(() => {})
+  }, [])
+  
   const [newName, setNewName] = useState('')
 
   // 프로젝트 생성
-  // 나중에 POST /api/projects 로 교체
-  const createProject = () => {
+const createProject = async () => {
     if (!newName.trim()) return
-    const proj = {
-      id: uid(),
-      name: newName.trim(),
-      ownerId: user.id,
-      members: [user.id],
-      categories: [],
-      posts: [],
-      createdAt: Date.now(),
+    try {
+      const result = await api('POST', '/api/projects', { name: newName.trim() })
+      const projects = await api('GET', '/api/projects')
+      setProjects(projects.map(p => ({
+        ...p,
+        members: [user.id],
+        categories: [],
+        posts: [],
+        createdAt: Date.now(),
+      })))
+      const newProj = projects.find(p => p.id === result.id)
+      setShowCreate(false)
+      setNewName('')
+      navigateToProject({ ...newProj, members: [user.id], categories: [], posts: [], createdAt: Date.now() })
+    } catch (e) {
+      alert('프로젝트 생성에 실패했습니다')
     }
-    setProjects((ps) => [...ps, proj])
-    setShowCreate(false)
-    setNewName('')
-    navigateToProject(proj)
   }
 
   return (
