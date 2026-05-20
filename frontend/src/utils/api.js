@@ -16,7 +16,7 @@ export const api = async (method, path, body) => {
   return data
 }
 
-// 파일 업로드용 (중간 공유에서 사용)
+// 파일 업로드용
 export const apiForm = async (path, formData) => {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
@@ -28,4 +28,13 @@ export const apiForm = async (path, formData) => {
   const data = await res.json()
   if (!res.ok) throw data
   return data
+}
+
+// 웹소켓 연결 - 다른 유저가 할 일 변경하면 자동으로 알려줌
+export const connectSocket = (onTaskUpdated) => {
+  import('socket.io-client').then(({ io }) => {
+    const socket = io(BASE)
+    socket.on('task_updated', onTaskUpdated)
+    return socket
+  })
 }
