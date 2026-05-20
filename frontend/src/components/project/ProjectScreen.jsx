@@ -58,7 +58,16 @@ export default function ProjectScreen({
               {/* 영구 삭제 */}
               <button
                 style={{ padding: '14px 16px', borderRadius: 12, background: '#fff5f5', border: '1.5px solid #fcc', cursor: 'pointer', textAlign: 'left', transition: '.2s' }}
-                onClick={() => { setShowClose(false); showToast('프로젝트가 삭제되었습니다'); setScreen('projects') }}
+                onClick={async () => {
+                                        try {
+                                              await api('DELETE', `/api/projects/${project.id}`)
+                                              setShowClose(false)
+                                              showToast('프로젝트가 삭제되었습니다')
+                                              setScreen('projects')
+                                              } catch (e) {
+                                              showToast('삭제에 실패했습니다')
+                                              }
+                                               }}
               >
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#e05c5c', marginBottom: 3 }}>🗑 영구 삭제</div>
                 <div style={{ fontSize: 12, color: '#c08080' }}>프로젝트를 완전히 삭제합니다. 이 작업은 되돌릴 수 없습니다.</div>
