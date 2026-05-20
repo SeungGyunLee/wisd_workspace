@@ -30,7 +30,7 @@ export default function Sidebar({
     const v = nickInputRef.current?.value.trim()
     if (!v) return
     try {
-      const data = await api('PATCH', '/me', { name: v })
+      const data = await api('PATCH', '/api/auth/me', { name: v })
       setCurrentUser((u) => ({ ...u, name: data.name }))
       setEditingNick(false)
       showToast('닉네임이 변경됐어요')
