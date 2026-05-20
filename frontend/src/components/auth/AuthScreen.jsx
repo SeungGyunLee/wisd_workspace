@@ -12,30 +12,39 @@ export default function AuthScreen({ users, setUsers, setCurrentUser, setScreen,
   const [err, setErr] = useState('')
 
   // 아이디 중복 확인
-  // 나중에 GET /api/auth/check?id= 로 교체
-  const checkId = () => {
+  const checkId = async () => {
     if (!id) { setIdStatus(null); return }
-    setIdStatus(users.some((u) => u.id === id) ? 'taken' : 'ok')
+    try {
+      const data = await api('GET', `/check?id=${id}`)
+      setIdStatus(data.taken ? 'taken' : 'ok')
+    } catch (e) {
+      setErr(e.error || '확인 중 오류가 발생했습니다')
+    }
   }
 
-  const doRegister = () => {
+  const doRegister = async () => {
     if (!id || !name || !pw) { setErr('모든 항목을 입력해주세요'); return }
-    if (idStatus === 'taken') { setErr('이미 사용 중인 아이디입니다'); return }
     if (pw !== pw2) { setErr('비밀번호가 일치하지 않습니다'); return }
-    // 나중에 POST /api/auth/signup 로 교체
-    const user = { id, name, password: pw }
-    setUsers((u) => [...u, user])
-    setCurrentUser(user)
-    setScreen('projects')
+    try {
+      const { user, token } = await api('POST', '/signup', { id, password: pw, name })
+      localStorage.setItem('token', token)
+      setCurrentUser(user)
+      setScreen('projects')
+    } catch (e) {
+      setErr(e.error || '회원가입에 실패했습니다')
+    }
   }
 
-  const doLogin = () => {
+  const doLogin = async () => {
     if (!id || !pw) { setErr('아이디와 비밀번호를 입력해주세요'); return }
-    // 나중에 POST /api/auth/login 으로 교체
-    const user = users.find((u) => u.id === id && u.password === pw)
-    if (!user) { setErr('아이디 또는 비밀번호가 올바르지 않습니다'); return }
-    setCurrentUser(user)
-    setScreen('projects')
+    try {
+      const { user, token } = await api('POST', '/login', { id, password: pw })
+      localStorage.setItem('token', token)
+      setCurrentUser(user)
+      setScreen('projects')
+    } catch (e) {
+      setErr(e.error || '로그인에 실패했습니다')
+    }
   }
 
   return (
