@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { WisdLogo, WisdIcon } from '../common/Logo'
 import { ICONS } from '../../assets/icons'
 import { getAvatarColor, getInitials } from '../../utils/helpers'
+import { api } from '../../utils/api'
 
 // 메뉴 목록
 const NAV = [
@@ -25,13 +26,16 @@ export default function Sidebar({
   const nickInputRef = useRef(null)
 
   // 닉네임 저장
-  // 나중에 PATCH /api/auth/me 로 교체
-  const saveNick = () => {
+  const saveNick = async () => {
     const v = nickInputRef.current?.value.trim()
-    if (v) {
-      setCurrentUser((u) => ({ ...u, name: v }))
+    if (!v) return
+    try {
+      const data = await api('PATCH', '/me', { name: v })
+      setCurrentUser((u) => ({ ...u, name: data.name }))
       setEditingNick(false)
       showToast('닉네임이 변경됐어요')
+    } catch (e) {
+      showToast('닉네임 변경에 실패했습니다')
     }
   }
 
