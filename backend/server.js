@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 
 const app = express();
 const port = process.env.PORT || 3000;
+const FRONTEND_URL = "http://152.67.199.142:5173";
 
 // 라우터 임포트
 const authRoutes = require('./routes/auth');
@@ -18,8 +19,9 @@ const server = http.createServer(app);
 // --- 웹소켓 서버(io) 세팅 ---
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173", 
-        methods: ["GET", "POST", "PUT", "DELETE"]
+        origin: FRONTEND_URL, 
+        methods: ["GET", "POST", "PUT", "DELETE"],
+        credentials: true 
     }
 });
 
@@ -30,10 +32,15 @@ io.on('connection', (socket) => {
     });
 });
 
-app.use(cors());
+app.use(cors({
+    origin: FRONTEND_URL,                               
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],          
+    allowedHeaders: ['Content-Type', 'Authorization'],  
+    credentials: true                                   
+}));
+
 app.use(express.json());
 
-// 인증 라우트 연결
 app.use('/api/auth', authRoutes);
 
 // =====================================
