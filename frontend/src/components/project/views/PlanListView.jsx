@@ -53,10 +53,20 @@ export default function PlanListView({ project, updateProject, notify }) {
     notify('카테고리가 삭제되었습니다')
   }
 
-  const saveCat = (id) => {
+  const saveCat = async (id) => {
     if (!editCatName.trim()) return
-    updateProject({ ...project, categories: project.categories.map((c) => c.id === id ? { ...c, name: editCatName } : c) })
-    setEditCatId(null)
+    const cat = project.categories.find(c => c.id === id)
+    try {
+      await api('PUT', `/api/projects/${project.id}/categories`, {
+        oldName: cat.name,
+        newName: editCatName.trim(),
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+      setEditCatId(null)
+    } catch (e) {
+      notify('카테고리 수정에 실패했습니다')
+    }
   }
 
   // 태스크 추가
