@@ -6,23 +6,49 @@ export default function ProjectsScreen({ user, projects, setProjects, navigateTo
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
 
-  // 프로젝트 생성
-  // 나중에 POST /api/projects 로 교체
-  const createProject = () => {
+  // 프로젝트 생성 (백엔드 연동 버전)
+  const createProject = async () => {
     if (!newName.trim()) return
-    const proj = {
-      id: uid(),
-      name: newName.trim(),
-      ownerId: user.id,
-      members: [user.id],
-      categories: [],
-      posts: [],
-      createdAt: Date.now(),
+
+    try {
+      // 1. 우리 서버(포트 3000)로 새 프로젝트 만들어달라고 요청(POST) 쏘기!
+      const response = await fetch('http://localhost:3000/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newName.trim(),
+          description: "프론트엔드 화면에서 만든 프로젝트입니다!" // 우리 DB에는 description이 필수니까 임시로 넣어줍니다.
+        }),
+      });
+
+      if (response.ok) {
+        // 2. 서버가 성공했다고 응답하면, DB에서 새로 발급해준 '진짜 ID(projectId)'를 받아옵니다.
+        const data = await response.json(); 
+        
+        // 3. 프론트엔드 화면(UI)에 반영할 데이터 만들기 (가짜 id 대신 진짜 DB id 사용!)
+        const proj = {
+          id: data.id, // 여기가 핵심! MySQL이 만들어준 진짜 번호가 꽂힙니다.
+          name: newName.trim(),
+          ownerId: user.id,
+          members: [user.id],
+          categories: [],
+          posts: [],
+          createdAt: Date.now(),
+        }
+        
+        setProjects((ps) => [...ps, proj])
+        setShowCreate(false)
+        setNewName('')
+        navigateToProject(proj)
+      } else {
+        alert('프로젝트 생성에 실패했습니다 (서버 에러)');
+      }
+    } catch (error) {
+      console.error('서버 통신 에러:', error);
+      alert('서버와 연결이 끊어졌습니다. 백엔드 서버가 켜져 있는지 확인하세요!');
     }
-    setProjects((ps) => [...ps, proj])
-    setShowCreate(false)
-    setNewName('')
-    navigateToProject(proj)
   }
 
   return (

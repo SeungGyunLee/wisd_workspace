@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import DashboardView from './views/DashboardView'
 import PlanListView from './views/PlanListView'
@@ -14,7 +14,30 @@ export default function ProjectScreen({
   setScreen, showToast, users, doLogout, setCurrentUser,
 }) {
   const [showClose, setShowClose] = useState(false)
+  useEffect(() => {
+    if (!project) return; // 프로젝트 정보가 없으면 멈춤
 
+    const fetchTasks = async () => {
+      try {
+        // 백엔드(포트 3000)로 해당 프로젝트의 할 일 목록(마트료시카 데이터) 요청!
+        const response = await fetch(`http://localhost:3000/api/projects/${project.id}/tasks`);
+        
+        if (response.ok) {
+          const categoriesData = await response.json();
+          
+          // 기존 프로젝트 데이터는 그대로 두고, 'categories' 부분만 가져온 진짜 데이터로 덮어쓰기!
+          updateProject({
+            ...project,
+            categories: categoriesData
+          });
+        }
+      } catch (error) {
+        console.error('할 일 목록을 불러오는데 실패했습니다:', error);
+      }
+    };
+
+    fetchTasks();
+  }, [project.id]); //  프로젝트 방(id)이 바뀔 때마다 다시 불러오라는 뜻입니다.
   return (
     <div className="app-layout">
       <Sidebar

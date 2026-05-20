@@ -32,17 +32,61 @@ export default function CalendarView({ project, updateProject, notify }) {
   const DAY = ['일', '월', '화', '수', '목', '금', '토']
   const selTasks = tasksByDate[selDate] || []
 
-  // 캘린더에서 바로 태스크 추가 (첫 번째 카테고리에 넣음)
-  // 나중에 POST /api/projects/:id/categories/:cId/tasks 로 교체
-  const addCalTask = () => {
-    if (!newTask.trim()) return
-    if (!project.categories.length) { notify('먼저 계획리스트에서 카테고리를 만들어주세요'); return }
-    const task = { id: uid(), title: newTask.trim(), done: false, dueDate: selDate, pinned: false }
-    updateProject({
-      ...project,
-      categories: project.categories.map((c, i) => i === 0 ? { ...c, tasks: [...c.tasks, task] } : c),
-    })
-    setNewTask('')
+// 캘린더에서 바로 태스크 추가 (백엔드 연동)
+  const addCalTask = async () => {
+    if (!newTask.trim()) return;
+    
+    // 작성자님의 원래 센스있는 방어 코드 유지! (카테고리 없으면 튕겨내기)
+    if (!project.categories.length) { 
+      notify('먼저 계획리스트에서 카테고리를 만들어주세요'); 
+      return; 
+    }
+
+    // 첫 번째 카테고리의 이름을 타겟으로 잡습니다.
+    const targetCategoryName = project.categories[0].name;
+
+    try {
+      // 1. 백엔드로 "이 날짜(selDate)에 일정 좀 추가해줘!" 라고 POST 쏘기
+      const response = await fetch('http://localhost:3000/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          project_id: project.id,       // 현재 열려있는 프로젝트 방 번호
+          category: targetCategoryName, // 첫 번째 카테고리 이름
+          title: newTask.trim(),        // 입력한 일정 내용
+          start_date: selDate,          // 캘린더에서 선택한 날짜
+          end_date: selDate             // 캘린더에서 선택한 날짜
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // 2. 백엔드에서 생성해준 진짜 번호(taskId)를 달아서 포스트잇 만들기 (500 에러 방지!)
+        const task = { 
+          id: data.taskId, 
+          title: newTask.trim(), 
+          done: false, 
+          dueDate: selDate, 
+          pinned: false 
+        };
+
+        // 3. 프론트엔드 화면 업데이트 (첫 번째 카테고리에 쏙 밀어넣기)
+        updateProject({
+          ...project,
+          categories: project.categories.map((c, i) => i === 0 ? { ...c, tasks: [...c.tasks, task] } : c),
+        });
+        
+        setNewTask(''); // 입력칸 비우기
+        notify('캘린더에 일정이 추가되었습니다! 📅');
+      } else {
+        alert('일정 추가에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('서버 통신 에러:', error);
+    }
   }
 
   return (
