@@ -24,7 +24,7 @@ export default function App() {
   useEffect(() => {
   const token = localStorage.getItem('token')
   if (token) {
-    api('GET', '/me')
+    api('GET', '/api/auth/me')
       .then((user) => {
         setCurrentUser(user)
         setScreen('projects')
