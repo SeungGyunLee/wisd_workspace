@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { uid } from '../../../utils/helpers'
+import { api, connectSocket } from '../../../utils/api'
 
 export default function PlanListView({ project, updateProject, notify }) {
   const [newCatName, setNewCatName] = useState('')
@@ -12,14 +13,40 @@ export default function PlanListView({ project, updateProject, notify }) {
   const [editTaskTitle, setEditTaskTitle] = useState('')
   const [editTaskDate, setEditTaskDate] = useState('')
 
+  useEffect(() => {
+    api('GET', `/api/projects/${project.id}/tasks`)
+      .then((data) => updateProject({ ...project, categories: data }))
+      .catch(() => {})
+  }, [project.id])
+
+  useEffect(() => {
+    const socket = connectSocket(() => {
+      api('GET', `/api/projects/${project.id}/tasks`)
+        .then((data) => updateProject({ ...project, categories: data }))
+    })
+    return () => socket?.disconnect()
+  }, [project.id])
+
+
   // 카테고리 추가
-  // 나중에 POST /api/projects/:id/categories 로 교체
-  const addCat = () => {
+  const addCat = async () => {
     if (!newCatName.trim()) return
-    const cat = { id: uid(), name: newCatName.trim(), tasks: [] }
-    updateProject({ ...project, categories: [...project.categories, cat] })
-    setNewCatName(''); setShowAddCat(false)
+    try {
+      await api('POST', '/api/tasks', {
+        project_id: project.id,
+        category: newCatName.trim(),
+        title: '임시',
+        start_date: null,
+        end_date: null,
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+      setNewCatName(''); setShowAddCat(false)
+    } catch (e) {
+      notify('카테고리 생성에 실패했습니다')
+    }
   }
+
 
   const delCat = (id) => {
     updateProject({ ...project, categories: project.categories.filter((c) => c.id !== id) })
@@ -33,42 +60,79 @@ export default function PlanListView({ project, updateProject, notify }) {
   }
 
   // 태스크 추가
-  // 나중에 POST /api/projects/:id/categories/:cId/tasks 로 교체
-  const addTask = (catId) => {
+  const addTask = async (catId) => {
     const title = (addInputs[catId] || '').trim()
     if (!title) return
-    const task = { id: uid(), title, done: false, dueDate: addDates[catId] || '', pinned: false }
-    updateProject({
-      ...project,
-      categories: project.categories.map((c) => c.id === catId ? { ...c, tasks: [...c.tasks, task] } : c),
-    })
-    setAddInputs((v) => ({ ...v, [catId]: '' }))
-    setAddDates((v) => ({ ...v, [catId]: '' }))
+    const cat = project.categories.find(c => c.id === catId)
+    try {
+      await api('POST', '/api/tasks', {
+        project_id: project.id,
+        category: cat.name,
+        title,
+        start_date: addDates[catId] || null,
+        end_date: addDates[catId] || null,
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+      setAddInputs((v) => ({ ...v, [catId]: '' }))
+      setAddDates((v) => ({ ...v, [catId]: '' }))
+    } catch (e) {
+      notify('할 일 추가에 실패했습니다')
+    }
   }
 
-  const toggleTask = (catId, taskId) =>
-    updateProject({ ...project, categories: project.categories.map((c) => c.id === catId ? { ...c, tasks: c.tasks.map((t) => t.id === taskId ? { ...t, done: !t.done } : t) } : c) })
+  const toggleTask = async (catId, taskId) => {
+    const cat = project.categories.find(c => c.id === catId)
+    const task = cat.tasks.find(t => t.id === taskId)
+    try {
+      await api('PUT', `/api/tasks/${taskId}`, {
+        category: cat.name,
+        title: task.title,
+        status: task.done ? 'TODO' : 'DONE',
+        start_date: task.dueDate || null,
+        end_date: task.dueDate || null,
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+    } catch (e) {
+      notify('상태 변경에 실패했습니다')
+    }
+  }
 
   const togglePin = (catId, taskId) =>
     updateProject({ ...project, categories: project.categories.map((c) => c.id === catId ? { ...c, tasks: c.tasks.map((t) => t.id === taskId ? { ...t, pinned: !t.pinned } : t) } : c) })
 
-  const delTask = (catId, taskId) =>
-    updateProject({ ...project, categories: project.categories.map((c) => c.id === catId ? { ...c, tasks: c.tasks.filter((t) => t.id !== taskId) } : c) })
+  const delTask = async (catId, taskId) => {
+    try {
+      await api('DELETE', `/api/tasks/${taskId}`)
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+    } catch (e) {
+      notify('할 일 삭제에 실패했습니다')
+    }
+  }
 
   const startEditTask = (task) => { setEditTaskId(task.id); setEditTaskTitle(task.title); setEditTaskDate(task.dueDate || '') }
 
   // 태스크 수정
-  // 나중에 PATCH /api/projects/:id/categories/:cId/tasks/:tId 로 교체
-  const saveTask = (catId) => {
+  const saveTask = async (catId) => {
     if (!editTaskTitle.trim()) return
-    updateProject({
-      ...project,
-      categories: project.categories.map((c) => c.id === catId
-        ? { ...c, tasks: c.tasks.map((t) => t.id === editTaskId ? { ...t, title: editTaskTitle.trim(), dueDate: editTaskDate } : t) }
-        : c),
-    })
-    setEditTaskId(null)
-    notify('할 일이 수정되었습니다')
+    const cat = project.categories.find(c => c.id === catId)
+    try {
+      await api('PUT', `/api/tasks/${editTaskId}`, {
+        category: cat.name,
+        title: editTaskTitle.trim(),
+        status: 'TODO',
+        start_date: editTaskDate || null,
+        end_date: editTaskDate || null,
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+      setEditTaskId(null)
+      notify('할 일이 수정되었습니다')
+    } catch (e) {
+      notify('할 일 수정에 실패했습니다')
+    }
   }
 
   return (
