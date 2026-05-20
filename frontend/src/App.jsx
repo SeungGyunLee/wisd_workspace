@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import AuthScreen from './components/auth/AuthScreen'
 import ProjectsScreen from './components/projects/ProjectsScreen'
 import ProjectScreen from './components/project/ProjectScreen'
 import Toast from './components/common/Toast'
 import { INIT_USERS, INIT_PROJECTS } from './data/sampleData'
+import { api } from './utils/api'
 
 export default function App() {
   // 화면 전환 상태
@@ -19,6 +20,20 @@ export default function App() {
   const [projectHistory, setProjectHistory] = useState([])
   const [activeView, setActiveView] = useState('dashboard')
   const [toast, setToast] = useState(null)
+
+  useEffect(() => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    api('GET', '/me')
+      .then((user) => {
+        setCurrentUser(user)
+        setScreen('projects')
+      })
+      .catch(() => {
+        localStorage.removeItem('token')
+      })
+  }
+}, [])
 
   // 프로젝트 이동 시 이전 프로젝트를 히스토리에 쌓음
   const navigateToProject = (proj) => {
