@@ -32,9 +32,8 @@ export const apiForm = async (path, formData) => {
 
 // 웹소켓 연결 - 다른 유저가 할 일 변경하면 자동으로 알려줌
 export const connectSocket = (onTaskUpdated) => {
-  import('socket.io-client').then(({ io }) => {
-    const socket = io(BASE)
-    socket.on('task_updated', onTaskUpdated)
-    return socket
-  })
+  const { io } = require('socket.io-client')
+  const socket = io(import.meta.env.VITE_API_URL)
+  socket.on('task_updated', onTaskUpdated)
+  return socket
 }
