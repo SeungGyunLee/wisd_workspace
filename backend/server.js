@@ -12,7 +12,7 @@ const FRONTEND_URL = "http://152.67.199.142:5173";
 
 // 라우터 임포트
 const authRoutes = require('./routes/auth');
-
+const postRoutes = require('./routes/posts');
 // --- 기존 app 코드를 http 서버로 감싸줍니다 ---
 const server = http.createServer(app);
 
@@ -40,8 +40,10 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use('/uploads', express.static('uploads'));
 
 app.use('/api/auth', authRoutes);
+app.use('/api', postRoutes);
 
 // =====================================
 // 프로젝트 CRUD API 시작
