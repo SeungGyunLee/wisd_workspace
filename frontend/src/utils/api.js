@@ -15,3 +15,17 @@ export const api = async (method, path, body) => {
   if (!res.ok) throw data
   return data
 }
+
+// 파일 업로드용 (중간 공유에서 사용)
+export const apiForm = async (path, formData) => {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+    },
+    body: formData,
+  })
+  const data = await res.json()
+  if (!res.ok) throw data
+  return data
+}
