@@ -1,7 +1,15 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { uid, fmtTime, getAvatarColor, getInitials } from '../../../utils/helpers'
+import { api, apiForm } from '../../../utils/api'
 
 export default function ShareView({ project, updateProject, user, users, notify }) {
+  
+  useEffect(() => {
+    api('GET', `/api/projects/${project.id}/posts`)
+      .then((posts) => updateProject({ ...project, posts }))
+      .catch(() => notify('게시물을 불러오지 못했습니다'))
+  }, [project.id])
+  
   const [filter, setFilter] = useState('all')
   const [memberFilter, setMemberFilter] = useState(null)
   const [catFilter, setCatFilter] = useState(null)
@@ -28,30 +36,64 @@ export default function ShareView({ project, updateProject, user, users, notify 
 
   const removeFile = (fid) => setDraftFiles((prev) => prev.filter((f) => f.id !== fid))
 
-  const submitPost = () => {
+  const submitPost = async () => {
     if (!draft.trim() && draftFiles.length === 0) return
-    const post = { id: uid(), authorId: user.id, content: draft.trim(), images: draftFiles, categoryTag: null, timestamp: Date.now(), likes: [], comments: [] }
-    updateProject({ ...project, posts: [post, ...project.posts] })
-    setDraft(''); setDraftFiles([])
+    try {
+      const formData = new FormData()
+      formData.append('content', draft)
+
+      // 파일 전부 기다렸다가 한 번에 보내야 함
+      await Promise.all(
+        draftFiles.map(async (f) => {
+          const res = await fetch(f.src)
+          const blob = await res.blob()
+          formData.append('files', blob, f.name)
+        })
+      )
+
+      await apiForm(`/api/projects/${project.id}/posts`, formData)
+
+      // 게시 후 목록 다시 불러오기
+      const posts = await api('GET', `/api/projects/${project.id}/posts`)
+      updateProject({ ...project, posts })
+      setDraft('')
+      setDraftFiles([])
+      notify('게시물이 등록됐어요')
+    } catch (e) {
+      notify('게시물 등록에 실패했습니다')
+    }
   }
 
-  const toggleLike = (pid) => updateProject({
-    ...project,
-    posts: project.posts.map((p) => {
-      if (p.id !== pid) return p
-      const liked = p.likes.includes(user.id)
-      return { ...p, likes: liked ? p.likes.filter((id) => id !== user.id) : [...p.likes, user.id] }
-    }),
-  })
+  const toggleLike = async (pid) => {
+    try {
+      const result = await api('POST', `/api/posts/${pid}/like`)
+      updateProject({
+        ...project,
+        posts: project.posts.map((p) => {
+          if (p.id !== pid) return p
+          return { ...p, likes: result.liked
+            ? [...p.likes, user.id]
+            : p.likes.filter((id) => id !== user.id)
+          }
+        }),
+      })
+    } catch (e) {
+      notify('오류가 발생했습니다')
+    }
+  }
 
-  const addComment = (pid) => {
+  const addComment = async (pid) => {
     const txt = (commentDrafts[pid] || '').trim()
     if (!txt) return
-    const cmt = { id: uid(), authorId: user.id, content: txt, timestamp: Date.now() }
-    updateProject({ ...project, posts: project.posts.map((p) => p.id === pid ? { ...p, comments: [...p.comments, cmt] } : p) })
-    setCommentDrafts((v) => ({ ...v, [pid]: '' }))
+    try {
+      const cmt = await api('POST', `/api/posts/${pid}/comments`, { content: txt })
+      updateProject({ ...project, posts: project.posts.map((p) => p.id === pid ? { ...p, comments: [...p.comments, cmt] } : p) })
+      setCommentDrafts((v) => ({ ...v, [pid]: '' }))
+    } catch (e) {
+      notify('댓글 등록에 실패했습니다')
+    }
   }
-
+  
   const filtered = project.posts.filter((p) => {
     if (filter === 'member' && memberFilter && p.authorId !== memberFilter) return false
     if (filter === 'category' && catFilter && p.categoryTag !== catFilter) return false
