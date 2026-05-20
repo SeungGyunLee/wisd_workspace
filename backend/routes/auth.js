@@ -20,7 +20,8 @@ router.get('/check', (req, res) => {
     const query = 'SELECT id FROM users WHERE email = ?';
     db.query(query, [id], (err, results) => {
         if (err) return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
-        res.json({ available: results.length === 0 });
+        
+        res.json({ taken: results.length > 0 }); 
     });
 });
 
@@ -33,7 +34,6 @@ router.post('/signup', async (req, res) => {
             return res.status(400).json({ error: '아이디, 비밀번호, 닉네임은 필수입니다.' });
         }
 
-        // 아이디(email) 중복 확인
         const checkQuery = 'SELECT id FROM users WHERE email = ?';
         db.query(checkQuery, [id], async (err, results) => {
             if (err) return res.status(500).json({ error: '서버 오류가 발생했습니다.' });
@@ -51,7 +51,7 @@ router.post('/signup', async (req, res) => {
                 const token = generateToken(userId, id);
                 res.status(201).json({
                     user: { id: userId, loginId: id, name },
-                    session: { access_token: token, token_type: 'bearer' }
+                    token: token 
                 });
             });
         });
@@ -84,7 +84,7 @@ router.post('/login', (req, res) => {
         const token = generateToken(user.id, user.email);
         res.json({
             user: { id: user.id, loginId: user.email, name: user.display_name },
-            session: { access_token: token, token_type: 'bearer' }
+            token: token 
         });
     });
 });
