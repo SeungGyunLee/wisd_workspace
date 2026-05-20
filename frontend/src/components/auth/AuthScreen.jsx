@@ -15,7 +15,7 @@ export default function AuthScreen({ users, setUsers, setCurrentUser, setScreen,
   const checkId = async () => {
     if (!id) { setIdStatus(null); return }
     try {
-      const data = await api('GET', `/check?id=${id}`)
+      const data = await api('GET', `/api/auth/check?id=${id}`)
       setIdStatus(data.taken ? 'taken' : 'ok')
     } catch (e) {
       setErr(e.error || '확인 중 오류가 발생했습니다')
@@ -26,7 +26,7 @@ export default function AuthScreen({ users, setUsers, setCurrentUser, setScreen,
     if (!id || !name || !pw) { setErr('모든 항목을 입력해주세요'); return }
     if (pw !== pw2) { setErr('비밀번호가 일치하지 않습니다'); return }
     try {
-      const { user, token } = await api('POST', '/signup', { id, password: pw, name })
+      const { user, token } = await api('POST', '/api/auth/signup', { id, password: pw, name })
       localStorage.setItem('token', token)
       setCurrentUser(user)
       setScreen('projects')
@@ -38,7 +38,7 @@ export default function AuthScreen({ users, setUsers, setCurrentUser, setScreen,
   const doLogin = async () => {
     if (!id || !pw) { setErr('아이디와 비밀번호를 입력해주세요'); return }
     try {
-      const { user, token } = await api('POST', '/login', { id, password: pw })
+      const { user, token } = await api('POST', '/api/auth/login', { id, password: pw })
       localStorage.setItem('token', token)
       setCurrentUser(user)
       setScreen('projects')
