@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { WisdLogo, WisdIcon } from '../common/Logo'
 import { uid } from '../../utils/helpers'
+import { api } from '../../utils/api'
 
 export default function AuthScreen({ users, setUsers, setCurrentUser, setScreen, authMode, setAuthMode }) {
   const [id, setId] = useState('')
