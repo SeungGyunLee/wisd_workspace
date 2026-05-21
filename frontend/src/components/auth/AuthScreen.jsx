@@ -12,19 +12,20 @@ export default function AuthScreen({ users, setUsers, setCurrentUser, setScreen,
   const [err, setErr] = useState('')
 
   // 아이디 중복 확인
-  const checkId = async () => {
-    if (!id) { setIdStatus(null); return }
-    try {
-      const data = await api('GET', `/api/auth/check?id=${id}`)
-      setIdStatus(data.taken ? 'taken' : 'ok')
-    } catch (e) {
-      setErr(e.error || '확인 중 오류가 발생했습니다')
-    }
+const checkId = async () => {
+  if (!id) { setIdStatus(null); return }
+  try {
+    const data = await api('GET', `/api/auth/check?id=${id}`)
+    setIdStatus(data.taken ? 'taken' : 'ok')  // available → taken 으로 변경
+  } catch {
+    setIdStatus(null)
   }
+}
 
   const doRegister = async () => {
-    if (!id || !name || !pw) { setErr('모든 항목을 입력해주세요'); return }
-    if (pw !== pw2) { setErr('비밀번호가 일치하지 않습니다'); return }
+  if (!id || !name || !pw) { setErr('모든 항목을 입력해주세요'); return }
+  if (idStatus === 'taken') { setErr('이미 사용 중인 아이디입니다'); return }  // 이거 추가
+  if (pw !== pw2) { setErr('비밀번호가 일치하지 않습니다'); return }
     try {
       const { user, token } = await api('POST', '/api/auth/signup', { id, password: pw, name })
       localStorage.setItem('token', token)
