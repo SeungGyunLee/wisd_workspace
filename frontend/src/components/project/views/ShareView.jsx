@@ -199,7 +199,7 @@ export default function ShareView({ project, updateProject, user, users, notify 
               {post.images && post.images.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: post.images.filter((f) => f.isImg).length === 1 ? '1fr' : '1fr 1fr', gap: 6, marginBottom: 12 }}>
                   {post.images.filter((f) => f.isImg).map((img) => (
-                    <img key={img.id} src={img.src} alt={img.name} style={{ width: '100%', aspectRatio: post.images.filter((f) => f.isImg).length === 1 ? '16/9' : '1', objectFit: 'cover', borderRadius: 8, cursor: 'pointer' }} onClick={() => window.open(img.src, '_blank')} />
+                    <img key={img.id} src={`${import.meta.env.VITE_API_URL}${img.src}`} alt={img.name} style={{ width: '100%', aspectRatio: post.images.filter((f) => f.isImg).length === 1 ? '16/9' : '1', objectFit: 'cover', borderRadius: 8, cursor: 'pointer' }} onClick={() => window.open(`${import.meta.env.VITE_API_URL}${img.src}`, '_blank')} />
                   ))}
                   {post.images.filter((f) => !f.isImg).map((f) => (
                     <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--dark)' }}>
