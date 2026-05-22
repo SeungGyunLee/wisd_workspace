@@ -22,7 +22,7 @@ export default function App() {
   useEffect(() => {
     const fetchRealProjects = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/projects');
+        const response = await fetch('http://152.67.199.142:3000/api/projects');
         if (response.ok) {
           const data = await response.json();
           
@@ -51,7 +51,7 @@ export default function App() {
     //  2. 여기서부터 소켓(실시간) 연결 코드 추가!
     // ----------------------------------------------------
 
-    const socket = io('http://localhost:3000'); // 백엔드 주소로 연결
+    const socket = io('http://152.67.199.142:3000'); // 백엔드 주소로 연결
 
     // 백엔드에서 'task_updated' 라고 소리치면 듣고 행동할 내용
     socket.on('task_updated', () => {

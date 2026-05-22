@@ -20,7 +20,7 @@ export default function ProjectScreen({
     const fetchTasks = async () => {
       try {
         // 백엔드(포트 3000)로 해당 프로젝트의 할 일 목록(마트료시카 데이터) 요청!
-        const response = await fetch(`http://localhost:3000/api/projects/${project.id}/tasks`);
+        const response = await fetch(`http://152.67.199.142:3000/api/projects/${project.id}/tasks`);
         
         if (response.ok) {
           const categoriesData = await response.json();

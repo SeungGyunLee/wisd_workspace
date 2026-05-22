@@ -34,7 +34,7 @@ export default function PlanListView({ project, updateProject, notify }) {
       // 3. 카테고리 안에 있는 모든 할 일(Task)들을 DB에서 하나씩 찢어버리기(DELETE)
       for (const task of categoryToDelete.tasks) {
         // 우리가 아까 만든 할 일 삭제 API를 여기서 재활용합니다!
-        await fetch(`http://localhost:3000/api/tasks/${task.id}`, {
+        await fetch(`http://152.67.199.142:3000/api/tasks/${task.id}`, {
           method: 'DELETE',
         });
       }
@@ -61,7 +61,7 @@ export default function PlanListView({ project, updateProject, notify }) {
 
     try {
       // 2. 백엔드로 옛날 이름 -> 새 이름으로 바꿔달라고 요청 쏘기!
-      const response = await fetch(`http://localhost:3000/api/projects/${project.id}/categories`, {
+      const response = await fetch(`http://152.67.199.142:3000/api/projects/${project.id}/categories`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ export default function PlanListView({ project, updateProject, notify }) {
 
     try {
       // 2. 백엔드(MySQL)로 데이터 쏘기! (아까 테스트했던 그 형식 그대로입니다)
-      const response = await fetch('http://localhost:3000/api/tasks', {
+      const response = await fetch('http://152.67.199.142:3000/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -157,7 +157,7 @@ export default function PlanListView({ project, updateProject, notify }) {
 
     try {
       // 3. 백엔드로 "이 할 일 상태 좀 바꿔줘!" 라고 요청(PUT) 쏘기
-      const response = await fetch(`http://localhost:3000/api/tasks/${taskId}`, {
+      const response = await fetch(`http://152.67.199.142:3000/api/tasks/${taskId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +195,7 @@ export default function PlanListView({ project, updateProject, notify }) {
     if (!window.confirm('정말로 이 할 일을 삭제하시겠습니까?')) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/tasks/${taskId}`, {
+      const response = await fetch(`http://152.67.199.142:3000/api/tasks/${taskId}`, {
         method: 'DELETE',
       });
 
@@ -230,7 +230,7 @@ export default function PlanListView({ project, updateProject, notify }) {
     const categoryName = category?.name || "미분류";
 
     try {
-      const response = await fetch(`http://localhost:3000/api/tasks/${editTaskId}`, {
+      const response = await fetch(`http://152.67.199.142:3000/api/tasks/${editTaskId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

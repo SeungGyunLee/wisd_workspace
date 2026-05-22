@@ -17,7 +17,7 @@ const server = http.createServer(app);
 // 프론트엔드 포트(5173)에서 오는 실시간 연결을 허락해 줍니다.
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173", 
+        origin: ["http://localhost:5173", "http://152.67.199.142:5173"],
         methods: ["GET", "POST", "PUT", "DELETE"]
     }
 });
@@ -32,15 +32,17 @@ io.on('connection', (socket) => {
     });
 });
 
-app.use(cors());
+app.use(cors({
+    origin: ["http://localhost:5173", "http://152.67.199.142:5173"]
+}));
 app.use(express.json()); // 중요: 클라이언트가 보내는 JSON 데이터를 읽기 위해 필요
 
 const db = mysql.createConnection({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME
+    host: process.env.LOCAL_DB_HOST,
+    port: process.env.LOCAL_DB_PORT,
+    user: process.env.LOCAL_DB_USER,
+    password: process.env.LOCAL_DB_PASSWORD,
+    database: process.env.LOCAL_DB_NAME
 });
 
 db.connect((err) => {
@@ -181,6 +183,6 @@ app.get('/', (req, res) => {
     res.send('협업 워크스페이스 백엔드 서버 구동 확인');
 });
 
-server.listen(port, () => {
-    console.log(`🚀 서버가 포트 ${port}에서 실행 중입니다! (실시간 웹소켓 포함)`);
+server.listen(3000, '0.0.0.0', () => {
+    console.log('서버가 3000번 포트에서 실행 중입니다.');
 });

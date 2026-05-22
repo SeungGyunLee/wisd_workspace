@@ -47,7 +47,7 @@ export default function CalendarView({ project, updateProject, notify }) {
 
     try {
       // 1. 백엔드로 "이 날짜(selDate)에 일정 좀 추가해줘!" 라고 POST 쏘기
-      const response = await fetch('http://localhost:3000/api/tasks', {
+      const response = await fetch('http://152.67.199.142:3000/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

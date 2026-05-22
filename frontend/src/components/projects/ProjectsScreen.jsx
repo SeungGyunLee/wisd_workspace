@@ -12,7 +12,7 @@ export default function ProjectsScreen({ user, projects, setProjects, navigateTo
 
     try {
       // 1. 우리 서버(포트 3000)로 새 프로젝트 만들어달라고 요청(POST) 쏘기!
-      const response = await fetch('http://localhost:3000/api/projects', {
+      const response = await fetch('http://152.67.199.142:3000/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
