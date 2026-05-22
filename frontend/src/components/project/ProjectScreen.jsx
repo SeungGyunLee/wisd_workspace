@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import DashboardView from './views/DashboardView'
 import PlanListView from './views/PlanListView'
@@ -7,6 +7,7 @@ import ProgressView from './views/ProgressView'
 import ShareView from './views/ShareView'
 import TeamView from './views/TeamView'
 import NavigateView from './views/NavigateView'
+import { api } from '../../utils/api' // api 도우미 불러오기!
 
 export default function ProjectScreen({
   user, project, projects, activeView, setActiveView,
@@ -14,6 +15,30 @@ export default function ProjectScreen({
   setScreen, showToast, users, doLogout, setCurrentUser,
 }) {
   const [showClose, setShowClose] = useState(false)
+
+  // ----------------------------------------------------
+  // 프로젝트 방 입장 시 할 일(카테고리) 싹 불러오기!
+  // ----------------------------------------------------
+  useEffect(() => {
+    if (!project) return; 
+
+    const fetchTasks = async () => {
+      try {
+        // api 도우미를 써서 토큰과 함께 안전하게 요청!
+        const categoriesData = await api('GET', `/api/projects/${project.id}/tasks`);
+        
+        // 기존 프로젝트 데이터에 카테고리만 덮어쓰기
+        updateProject({
+          ...project,
+          categories: categoriesData
+        });
+      } catch (error) {
+        console.error('할 일 목록을 불러오는데 실패했습니다:', error);
+      }
+    };
+
+    fetchTasks();
+  }, [project?.id]); // 프로젝트 방(id)이 바뀔 때마다 실행
 
   return (
     <div className="app-layout">
@@ -47,6 +72,7 @@ export default function ProjectScreen({
               마감 방법을 선택해주세요. 보관은 나중에 다시 확인할 수 있고, 삭제는 복구가 불가능합니다.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+              
               {/* 보관하기 */}
               <button
                 style={{ padding: '14px 16px', borderRadius: 12, background: 'var(--hover)', border: '1.5px solid var(--border)', cursor: 'pointer', textAlign: 'left', transition: '.2s' }}
@@ -55,23 +81,25 @@ export default function ProjectScreen({
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--dark)', marginBottom: 3 }}>📦 보관하기</div>
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>프로젝트를 보관합니다. 보관된 프로젝트는 목록에서 다시 열 수 있습니다.</div>
               </button>
-              {/* 영구 삭제 */}
+              
+              {/* 영구 삭제 (조원이 추가한 진짜 DB 삭제 기능 존중!) */}
               <button
                 style={{ padding: '14px 16px', borderRadius: 12, background: '#fff5f5', border: '1.5px solid #fcc', cursor: 'pointer', textAlign: 'left', transition: '.2s' }}
                 onClick={async () => {
-                                        try {
-                                              await api('DELETE', `/api/projects/${project.id}`)
-                                              setShowClose(false)
-                                              showToast('프로젝트가 삭제되었습니다')
-                                              setScreen('projects')
-                                              } catch (e) {
-                                              showToast('삭제에 실패했습니다')
-                                              }
-                                               }}
+                  try {
+                    await api('DELETE', `/api/projects/${project.id}`)
+                    setShowClose(false)
+                    showToast('프로젝트가 삭제되었습니다')
+                    setScreen('projects')
+                  } catch (e) {
+                    showToast('삭제에 실패했습니다')
+                  }
+                }}
               >
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#e05c5c', marginBottom: 3 }}>🗑 영구 삭제</div>
                 <div style={{ fontSize: 12, color: '#c08080' }}>프로젝트를 완전히 삭제합니다. 이 작업은 되돌릴 수 없습니다.</div>
               </button>
+              
             </div>
             <button className="btn-cancel" style={{ width: '100%' }} onClick={() => setShowClose(false)}>취소</button>
           </div>

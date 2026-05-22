@@ -13,46 +13,66 @@ export default function PlanListView({ project, updateProject, notify }) {
   const [editTaskTitle, setEditTaskTitle] = useState('')
   const [editTaskDate, setEditTaskDate] = useState('')
 
+  // ----------------------------------------------------
+  //  할 일 목록 불러오기 & 실시간 새로고침 (useEffect 하나로 통합!)
+  // ----------------------------------------------------
   useEffect(() => {
-    api('GET', `/api/projects/${project.id}/tasks`)
-      .then((data) => updateProject({ ...project, categories: data }))
-      .catch(() => {})
-  }, [project.id])
+    // 1. 데이터 불러오는 함수
+    const fetchTasks = async () => {
+      try {
+        const data = await api('GET', `/api/projects/${project.id}/tasks`);
+        updateProject({ ...project, categories: data });
+      } catch (err) {
+        console.error('할 일 목록 로드 실패:', err);
+      }
+    };
 
-  useEffect(() => {
+    // 2. 화면 켤 때 한 번 불러오기
+    fetchTasks();
+
+    // 3. 누군가 데이터를 바꾸면(웹소켓 알림) 다시 불러오기
     const socket = connectSocket(() => {
-      api('GET', `/api/projects/${project.id}/tasks`)
-        .then((data) => updateProject({ ...project, categories: data }))
-    })
-    return () => socket?.disconnect()
-  }, [project.id])
+      console.log('🔄 다른 팀원이 할 일을 수정했습니다! 새로고침합니다.');
+      fetchTasks();
+    });
+
+    // 4. 화면 끌 때 웹소켓 연결 해제
+    return () => socket?.disconnect();
+  }, [project.id]);
 
 
-  // 카테고리 추가
+  // ----------------------------------------------------
+  //  카테고리 및 태스크 CRUD 기능들
+  // ----------------------------------------------------
+  
+  // 카테고리 추가 (임시 태스크 생성 꼼수 활용!)
   const addCat = async () => {
     if (!newCatName.trim()) return
     try {
       await api('POST', '/api/tasks', {
         project_id: project.id,
         category: newCatName.trim(),
-        title: '임시',
+        title: '임시', // DB 구조상 카테고리를 만들기 위한 임시 태스크
         start_date: null,
         end_date: null,
       })
       const data = await api('GET', `/api/projects/${project.id}/tasks`)
       updateProject({ ...project, categories: data })
       setNewCatName(''); setShowAddCat(false)
+      notify('새 카테고리가 추가되었습니다')
     } catch (e) {
       notify('카테고리 생성에 실패했습니다')
     }
   }
 
-
+  // 카테고리 삭제 (프론트엔드 임시 처리)
   const delCat = (id) => {
+    if (!window.confirm('카테고리를 삭제하시겠습니까?')) return;
     updateProject({ ...project, categories: project.categories.filter((c) => c.id !== id) })
     notify('카테고리가 삭제되었습니다')
   }
 
+  // 카테고리 이름 수정
   const saveCat = async (id) => {
     if (!editCatName.trim()) return
     const cat = project.categories.find(c => c.id === id)
@@ -64,6 +84,7 @@ export default function PlanListView({ project, updateProject, notify }) {
       const data = await api('GET', `/api/projects/${project.id}/tasks`)
       updateProject({ ...project, categories: data })
       setEditCatId(null)
+      notify('카테고리 이름이 수정되었습니다')
     } catch (e) {
       notify('카테고리 수정에 실패했습니다')
     }
@@ -91,6 +112,7 @@ export default function PlanListView({ project, updateProject, notify }) {
     }
   }
 
+  // 태스크 완료 상태 토글
   const toggleTask = async (catId, taskId) => {
     const cat = project.categories.find(c => c.id === catId)
     const task = cat.tasks.find(t => t.id === taskId)
@@ -109,14 +131,17 @@ export default function PlanListView({ project, updateProject, notify }) {
     }
   }
 
+  // 태스크 대시보드 핀(Pin) 토글 (프론트엔드 전용)
   const togglePin = (catId, taskId) =>
     updateProject({ ...project, categories: project.categories.map((c) => c.id === catId ? { ...c, tasks: c.tasks.map((t) => t.id === taskId ? { ...t, pinned: !t.pinned } : t) } : c) })
 
+  // 태스크 삭제
   const delTask = async (catId, taskId) => {
     try {
       await api('DELETE', `/api/tasks/${taskId}`)
       const data = await api('GET', `/api/projects/${project.id}/tasks`)
       updateProject({ ...project, categories: data })
+      notify('할 일이 삭제되었습니다')
     } catch (e) {
       notify('할 일 삭제에 실패했습니다')
     }
@@ -124,7 +149,7 @@ export default function PlanListView({ project, updateProject, notify }) {
 
   const startEditTask = (task) => { setEditTaskId(task.id); setEditTaskTitle(task.title); setEditTaskDate(task.dueDate || '') }
 
-  // 태스크 수정
+  // 태스크 수정 완료
   const saveTask = async (catId) => {
     if (!editTaskTitle.trim()) return
     const cat = project.categories.find(c => c.id === catId)
@@ -132,7 +157,7 @@ export default function PlanListView({ project, updateProject, notify }) {
       await api('PUT', `/api/tasks/${editTaskId}`, {
         category: cat.name,
         title: editTaskTitle.trim(),
-        status: 'TODO',
+        status: 'TODO', // 수정 시 TODO로 초기화 (원하시면 기존 status 유지되도록 변경 가능)
         start_date: editTaskDate || null,
         end_date: editTaskDate || null,
       })
@@ -145,6 +170,9 @@ export default function PlanListView({ project, updateProject, notify }) {
     }
   }
 
+  // ----------------------------------------------------
+  //  화면 렌더링 (UI)
+  // ----------------------------------------------------
   return (
     <div>
       <div className="view-title">계획리스트</div>
