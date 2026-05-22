@@ -2,11 +2,11 @@ const mysql = require('mysql2');
 require('dotenv').config();
 
 const db = mysql.createConnection({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    host: process.env.TIDB_HOST,
+    port: process.env.TIDB_PORT,
+    user: process.env.TIDB_USER,
+    password: process.env.TIDB_PASSWORD,
+    database: process.env.TIDB_NAME,
     ssl: {
         rejectUnauthorized: true
     }
