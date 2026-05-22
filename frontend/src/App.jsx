@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { io } from 'socket.io-client' //1. 상단에 라디오 수신기 불러오기
+import { io } from 'socket.io-client' // 실시간 라디오 수신기
 import AuthScreen from './components/auth/AuthScreen'
 import ProjectsScreen from './components/projects/ProjectsScreen'
 import ProjectScreen from './components/project/ProjectScreen'
 import Toast from './components/common/Toast'
 import { INIT_USERS, INIT_PROJECTS } from './data/sampleData'
+import { api, connectSocket } from './utils/api' // API 통신 도우미
 
 export default function App() {
   // 화면 전환 상태
@@ -14,11 +15,34 @@ export default function App() {
   // 유저/프로젝트 상태
   const [users, setUsers] = useState(INIT_USERS)
   const [currentUser, setCurrentUser] = useState(null)
-
-  // 1. 초기값은 텅 빈 배열([])로 시작합니다.
+  
+  // 빈 배열로 시작해서 백엔드 진짜 데이터를 담을 준비!
   const [projects, setProjects] = useState([]) 
+  const [currentProject, setCurrentProject] = useState(null)
+  const [projectHistory, setProjectHistory] = useState([])
+  const [activeView, setActiveView] = useState('dashboard')
+  const [toast, setToast] = useState(null)
 
-  // 2. 화면이 켜지자마자 백엔드에서 진짜 프로젝트 목록을 가져오는 마법의 코드!
+  // ----------------------------------------------------
+  //  1. 화면 켤 때 자동 로그인 검증
+  // ----------------------------------------------------
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      api('GET', '/api/auth/me')
+        .then((user) => {
+          setCurrentUser(user)
+          setScreen('projects')
+        })
+        .catch(() => {
+          localStorage.removeItem('token')
+        })
+    }
+  }, [])
+
+  // ----------------------------------------------------
+  //  2. 진짜 프로젝트 데이터 불러오기 & 실시간 통신
+  // ----------------------------------------------------
   useEffect(() => {
     const fetchRealProjects = async () => {
       try {
@@ -26,18 +50,17 @@ export default function App() {
         if (response.ok) {
           const data = await response.json();
           
-          // 백엔드 데이터(MySQL)를 프론트엔드 입맛에 맞게 변환 (번역기 역할)
+          // 백엔드 데이터(MySQL)를 프론트엔드 입맛에 맞게 변환
           const formattedProjects = data.map(p => ({
             id: p.id,
             name: p.name,
-            ownerId: currentUser ? currentUser.id : 'demo', // 임시 유저
-            members: [currentUser ? currentUser.id : 'demo'], // 임시 유저
-            categories: [], // 카테고리(할 일)는 나중에 상세 페이지 들어가면 불러올 겁니다!
+            ownerId: currentUser ? currentUser.id : 'demo', 
+            members: [currentUser ? currentUser.id : 'demo'], 
+            categories: [], 
             posts: [],
             createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
           }));
           
-          // 진짜 데이터로 프론트엔드 화면 채우기!
           setProjects(formattedProjects);
         }
       } catch (error) {
@@ -47,28 +70,20 @@ export default function App() {
 
     fetchRealProjects();
     
-    // ----------------------------------------------------
-    //  2. 여기서부터 소켓(실시간) 연결 코드 추가!
-    // ----------------------------------------------------
+    // 백엔드 라디오(웹소켓) 연결
+    const socket = io('http://152.67.199.142:3000'); 
 
-    const socket = io('http://152.67.199.142:3000'); // 백엔드 주소로 연결
-
-    // 백엔드에서 'task_updated' 라고 소리치면 듣고 행동할 내용
+    // 업데이트 소리가 들리면 리스트 새로고침!
     socket.on('task_updated', () => {
       console.log('🔄 실시간 업데이트 감지! 화면을 새로 불러옵니다.');
-      fetchRealProjects(); // 몰래 뒤에서 최신 데이터 다시 싹 불러오기!
+      fetchRealProjects(); 
     });
 
-    // 화면이 꺼지면 라디오도 끕니다
+    // 화면 꺼지거나 로그아웃하면 라디오 끄기
     return () => {
       socket.disconnect();
     };
-
-  }, []); // 끝에 있는 빈 대괄호[]는 "처음 켜질 때 딱 한 번만 실행해!" 라는 뜻입니다.
-  const [currentProject, setCurrentProject] = useState(null)
-  const [projectHistory, setProjectHistory] = useState([])
-  const [activeView, setActiveView] = useState('dashboard')
-  const [toast, setToast] = useState(null)
+  }, [currentUser]); // 센스 한 스푼: currentUser가 셋팅(로그인)된 이후에 실행되도록 의존성 배열에 추가!
 
   // 프로젝트 이동 시 이전 프로젝트를 히스토리에 쌓음
   const navigateToProject = (proj) => {
@@ -102,6 +117,7 @@ export default function App() {
     setCurrentProject(null)
     setProjectHistory([])
     setScreen('auth')
+    localStorage.removeItem('token') // 토큰 로직에 맞춰 로그아웃 시 토큰 삭제 추가
   }
 
   // 내 프로젝트만 필터링

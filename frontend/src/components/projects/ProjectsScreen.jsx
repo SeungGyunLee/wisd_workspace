@@ -1,53 +1,55 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { WisdLogo, WisdIcon } from '../common/Logo'
 import { uid, fmtDate, getAvatarColor, getInitials, getProgress } from '../../utils/helpers'
+import { api } from '../../utils/api' // api 도우미 사용
 
 export default function ProjectsScreen({ user, projects, setProjects, navigateToProject, setScreen, doLogout }) {
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
 
-  // 프로젝트 생성 (백엔드 연동 버전)
+  // 1. 화면 켜질 때 프로젝트 목록 불러오기
+  useEffect(() => {
+    api('GET', '/api/projects')
+      .then((data) => setProjects(data.map(p => ({
+        ...p,
+        members: [user.id],
+        categories: [],
+        posts: [],
+        createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+      }))))
+      .catch((err) => console.error('프로젝트를 불러오지 못했습니다.', err))
+  }, [])
+  
+  // 2. 새 프로젝트 생성 (백엔드 연동)
   const createProject = async () => {
     if (!newName.trim()) return
 
     try {
-      // 1. 우리 서버(포트 3000)로 새 프로젝트 만들어달라고 요청(POST) 쏘기!
-      const response = await fetch('http://152.67.199.142:3000/api/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: newName.trim(),
-          description: "프론트엔드 화면에서 만든 프로젝트입니다!" // 우리 DB에는 description이 필수니까 임시로 넣어줍니다.
-        }),
-      });
-
-      if (response.ok) {
-        // 2. 서버가 성공했다고 응답하면, DB에서 새로 발급해준 '진짜 ID(projectId)'를 받아옵니다.
-        const data = await response.json(); 
-        
-        // 3. 프론트엔드 화면(UI)에 반영할 데이터 만들기 (가짜 id 대신 진짜 DB id 사용!)
-        const proj = {
-          id: data.id, // 여기가 핵심! MySQL이 만들어준 진짜 번호가 꽂힙니다.
-          name: newName.trim(),
-          ownerId: user.id,
-          members: [user.id],
-          categories: [],
-          posts: [],
-          createdAt: Date.now(),
-        }
-        
-        setProjects((ps) => [...ps, proj])
-        setShowCreate(false)
-        setNewName('')
-        navigateToProject(proj)
-      } else {
-        alert('프로젝트 생성에 실패했습니다 (서버 에러)');
+      // api 도우미를 써서 POST 요청 (토큰 알아서 들어감!)
+      const result = await api('POST', '/api/projects', { name: newName.trim() })
+      
+      // 생성 후 최신 목록 다시 불러오기
+      const updatedProjects = await api('GET', '/api/projects')
+      
+      setProjects(updatedProjects.map(p => ({
+        ...p,
+        members: [user.id],
+        categories: [],
+        posts: [],
+        createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+      })))
+      
+      const newProj = updatedProjects.find(p => p.id === result.id)
+      setShowCreate(false)
+      setNewName('')
+      
+      // 방금 만든 프로젝트로 바로 입장!
+      if (newProj) {
+        navigateToProject({ ...newProj, members: [user.id], categories: [], posts: [], createdAt: Date.now() })
       }
-    } catch (error) {
-      console.error('서버 통신 에러:', error);
-      alert('서버와 연결이 끊어졌습니다. 백엔드 서버가 켜져 있는지 확인하세요!');
+    } catch (e) {
+      alert('프로젝트 생성에 실패했습니다')
+      console.error(e)
     }
   }
 
@@ -85,6 +87,7 @@ export default function ProjectsScreen({ user, projects, setProjects, navigateTo
             <div className="project-card-pct">진행률 {getProgress(proj)}%</div>
           </div>
         ))}
+        
         <div className="create-card" onClick={() => setShowCreate(true)}>
           <div className="create-icon">+</div>
           <div style={{ fontSize: 13, fontWeight: 600 }}>새 프로젝트 만들기</div>

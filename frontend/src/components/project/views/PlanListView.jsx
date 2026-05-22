@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { uid } from '../../../utils/helpers'
+import { api, connectSocket } from '../../../utils/api'
 
 export default function PlanListView({ project, updateProject, notify }) {
   const [newCatName, setNewCatName] = useState('')
@@ -12,255 +13,166 @@ export default function PlanListView({ project, updateProject, notify }) {
   const [editTaskTitle, setEditTaskTitle] = useState('')
   const [editTaskDate, setEditTaskDate] = useState('')
 
-  // 카테고리 추가
-  // 나중에 POST /api/projects/:id/categories 로 교체
-  const addCat = () => {
+  // ----------------------------------------------------
+  //  할 일 목록 불러오기 & 실시간 새로고침 (useEffect 하나로 통합!)
+  // ----------------------------------------------------
+  useEffect(() => {
+    // 1. 데이터 불러오는 함수
+    const fetchTasks = async () => {
+      try {
+        const data = await api('GET', `/api/projects/${project.id}/tasks`);
+        updateProject({ ...project, categories: data });
+      } catch (err) {
+        console.error('할 일 목록 로드 실패:', err);
+      }
+    };
+
+    // 2. 화면 켤 때 한 번 불러오기
+    fetchTasks();
+
+    // 3. 누군가 데이터를 바꾸면(웹소켓 알림) 다시 불러오기
+    const socket = connectSocket(() => {
+      console.log('🔄 다른 팀원이 할 일을 수정했습니다! 새로고침합니다.');
+      fetchTasks();
+    });
+
+    // 4. 화면 끌 때 웹소켓 연결 해제
+    return () => socket?.disconnect();
+  }, [project.id]);
+
+
+  // ----------------------------------------------------
+  //  카테고리 및 태스크 CRUD 기능들
+  // ----------------------------------------------------
+  
+  // 카테고리 추가 (임시 태스크 생성 꼼수 활용!)
+  const addCat = async () => {
     if (!newCatName.trim()) return
-    const cat = { id: uid(), name: newCatName.trim(), tasks: [] }
-    updateProject({ ...project, categories: [...project.categories, cat] })
-    setNewCatName(''); setShowAddCat(false)
-  }
-
-  // 카테고리 삭제 (백엔드 연동)
-  const delCat = async (id) => {
-    // 1. 실수로 누를 수 있으니 한 번 물어보기
-    if (!window.confirm('이 카테고리와 안에 있는 모든 할 일이 삭제됩니다. 계속하시겠습니까?')) return;
-
-    // 2. 삭제할 카테고리 정보 찾기
-    const categoryToDelete = project.categories.find(c => c.id === id);
-    if (!categoryToDelete) return;
-
     try {
-      // 3. 카테고리 안에 있는 모든 할 일(Task)들을 DB에서 하나씩 찢어버리기(DELETE)
-      for (const task of categoryToDelete.tasks) {
-        // 우리가 아까 만든 할 일 삭제 API를 여기서 재활용합니다!
-        await fetch(`http://152.67.199.142:3000/api/tasks/${task.id}`, {
-          method: 'DELETE',
-        });
-      }
-
-      // 4. DB에서 다 지워졌으면, 프론트엔드 화면에서도 카테고리 날려버리기
-      updateProject({ 
-        ...project, 
-        categories: project.categories.filter((c) => c.id !== id) 
-      });
-      notify('카테고리와 할 일들이 완벽하게 삭제되었습니다! 🗑️');
-      
-    } catch (error) {
-      console.error('카테고리 삭제 중 에러 발생:', error);
-      alert('카테고리 삭제에 실패했습니다.');
+      await api('POST', '/api/tasks', {
+        project_id: project.id,
+        category: newCatName.trim(),
+        title: '임시', // DB 구조상 카테고리를 만들기 위한 임시 태스크
+        start_date: null,
+        end_date: null,
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+      setNewCatName(''); setShowAddCat(false)
+      notify('새 카테고리가 추가되었습니다')
+    } catch (e) {
+      notify('카테고리 생성에 실패했습니다')
     }
   }
 
-  // 카테고리 수정 (백엔드 연동 )
-  const saveCat = async (catId) => {
+  // 카테고리 삭제 (프론트엔드 임시 처리)
+  const delCat = (id) => {
+    if (!window.confirm('카테고리를 삭제하시겠습니까?')) return;
+    updateProject({ ...project, categories: project.categories.filter((c) => c.id !== id) })
+    notify('카테고리가 삭제되었습니다')
+  }
+
+  // 카테고리 이름 수정
+  const saveCat = async (id) => {
     if (!editCatName.trim()) return
-
-    // 1. 프론트엔드 화면에서 옛날 카테고리 이름 찾기 (백엔드한테 알려주기 위해)
-    const oldCatName = project.categories.find(c => c.id === catId)?.name || "";
-
+    const cat = project.categories.find(c => c.id === id)
     try {
-      // 2. 백엔드로 옛날 이름 -> 새 이름으로 바꿔달라고 요청 쏘기!
-      const response = await fetch(`http://152.67.199.142:3000/api/projects/${project.id}/categories`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          oldName: oldCatName, 
-          newName: editCatName.trim()
-        }),
-      });
-
-      if (response.ok) {
-        // 3. 성공하면 프론트 화면(UI)도 새 이름으로 바꿔주기
-        updateProject({
-          ...project,
-          categories: project.categories.map((c) => c.id === catId ? { ...c, name: editCatName.trim() } : c),
-        })
-        setEditCatId(null)
-        notify('카테고리 이름이 변경되었습니다!')
-      } else {
-        alert('카테고리 수정에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('서버 통신 에러:', error);
+      await api('PUT', `/api/projects/${project.id}/categories`, {
+        oldName: cat.name,
+        newName: editCatName.trim(),
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+      setEditCatId(null)
+      notify('카테고리 이름이 수정되었습니다')
+    } catch (e) {
+      notify('카테고리 수정에 실패했습니다')
     }
   }
 
-  // 태스크 추가 (백엔드 연동)
+  // 태스크 추가
   const addTask = async (catId) => {
     const title = (addInputs[catId] || '').trim()
     if (!title) return
-
-    // 1. 프론트엔드 화면에서 현재 카테고리 이름 찾기
-    const categoryName = project.categories.find(c => c.id === catId)?.name || "기본";
-    const dueDate = addDates[catId] || '';
-
+    const cat = project.categories.find(c => c.id === catId)
     try {
-      // 2. 백엔드(MySQL)로 데이터 쏘기! (아까 테스트했던 그 형식 그대로입니다)
-      const response = await fetch('http://152.67.199.142:3000/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          project_id: project.id,
-          category: categoryName,
-          title: title,
-          start_date: dueDate || null, // 프론트 화면엔 날짜가 1개뿐이라 일단 똑같이 넣습니다
-          end_date: dueDate || null // 날짜가 비어있으면 null
-        }),
-      });
-
-      if (response.ok) {
-        // 3. 성공하면 백엔드에서 생성된 진짜 Task ID를 받아옵니다 (id가 반환된다고 가정)
-        const data = await response.json();
-        
-        // 4. 화면(UI)에 반영하기
-        const task = { 
-          id: data.taskId, // 백엔드가 준 진짜 번호 장착!
-          title, 
-          done: false, 
-          dueDate, 
-          pinned: false 
-        }
-        
-        updateProject({
-          ...project,
-          categories: project.categories.map((c) => 
-            c.id === catId ? { ...c, tasks: [...c.tasks, task] } : c
-          ),
-        })
-        
-        // 입력창 비우기
-        setAddInputs((v) => ({ ...v, [catId]: '' }))
-        setAddDates((v) => ({ ...v, [catId]: '' }))
-        notify('할 일이 성공적으로 추가되었습니다! 🎉')
-      } else {
-        alert('할 일 추가에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('서버 에러:', error);
+      await api('POST', '/api/tasks', {
+        project_id: project.id,
+        category: cat.name,
+        title,
+        start_date: addDates[catId] || null,
+        end_date: addDates[catId] || null,
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+      setAddInputs((v) => ({ ...v, [catId]: '' }))
+      setAddDates((v) => ({ ...v, [catId]: '' }))
+    } catch (e) {
+      notify('할 일 추가에 실패했습니다')
     }
   }
 
-  // 할 일 완료 상태 변경 (백엔드 연동)
+  // 태스크 완료 상태 토글
   const toggleTask = async (catId, taskId) => {
-    // 1. 현재 클릭한 할 일(Task)과 카테고리(Category)의 정보 찾기
-    const category = project.categories.find(c => c.id === catId);
-    const task = category.tasks.find(t => t.id === taskId);
-    if (!category || !task) return;
-
-    // 2. 바뀔 상태 결정 (지금 체크되어 있으면 해제(TODO), 안 되어있으면 완료(DONE))
-    const newStatus = task.done ? 'TODO' : 'DONE';
-
+    const cat = project.categories.find(c => c.id === catId)
+    const task = cat.tasks.find(t => t.id === taskId)
     try {
-      // 3. 백엔드로 "이 할 일 상태 좀 바꿔줘!" 라고 요청(PUT) 쏘기
-      const response = await fetch(`http://152.67.199.142:3000/api/tasks/${taskId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          category: category.name,
-          title: task.title,
-          status: newStatus, // 핵심! 'DONE' 또는 'TODO'를 보냅니다.
-          start_date: task.dueDate || null,
-          end_date: task.dueDate || null
-        }),
-      });
-
-      if (response.ok) {
-        // 4. 백엔드(DB) 업데이트 성공 시, 프론트엔드 화면의 체크박스도 바꿔주기!
-        updateProject({
-          ...project,
-          categories: project.categories.map((c) => c.id === catId
-            ? { ...c, tasks: c.tasks.map((t) => t.id === taskId ? { ...t, done: !t.done } : t) }
-            : c),
-        });
-      } else {
-        console.error('할 일 상태 변경 실패');
-      }
-    } catch (error) {
-      console.error('서버 통신 에러:', error);
+      await api('PUT', `/api/tasks/${taskId}`, {
+        category: cat.name,
+        title: task.title,
+        status: task.done ? 'TODO' : 'DONE',
+        start_date: task.dueDate || null,
+        end_date: task.dueDate || null,
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+    } catch (e) {
+      notify('상태 변경에 실패했습니다')
     }
   }
 
+  // 태스크 대시보드 핀(Pin) 토글 (프론트엔드 전용)
   const togglePin = (catId, taskId) =>
     updateProject({ ...project, categories: project.categories.map((c) => c.id === catId ? { ...c, tasks: c.tasks.map((t) => t.id === taskId ? { ...t, pinned: !t.pinned } : t) } : c) })
 
-  // 할 일(포스트잇 1개) 삭제 (백엔드 연동)
+  // 태스크 삭제
   const delTask = async (catId, taskId) => {
-    if (!window.confirm('정말로 이 할 일을 삭제하시겠습니까?')) return;
-
     try {
-      const response = await fetch(`http://152.67.199.142:3000/api/tasks/${taskId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        updateProject({
-          ...project,
-          categories: project.categories.map((c) => c.id === catId
-            ? { ...c, tasks: c.tasks.filter((t) => t.id !== taskId) }
-            : c),
-        });
-        notify('할 일이 영구적으로 삭제되었습니다! 🗑️');
-      } else {
-        alert('할 일 삭제에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('서버 통신 에러:', error);
+      await api('DELETE', `/api/tasks/${taskId}`)
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+      notify('할 일이 삭제되었습니다')
+    } catch (e) {
+      notify('할 일 삭제에 실패했습니다')
     }
   }
 
   const startEditTask = (task) => { setEditTaskId(task.id); setEditTaskTitle(task.title); setEditTaskDate(task.dueDate || '') }
 
-  // 할 일 수정 (백엔드 연동)
+  // 태스크 수정 완료
   const saveTask = async (catId) => {
     if (!editTaskTitle.trim()) return
-
-    // 1. 현재 카테고리와 기존 할 일 정보 찾기
-    const category = project.categories.find(c => c.id === catId);
-    const task = category?.tasks.find(t => t.id === editTaskId);
-    
-    // 2. 500 에러 방지용! 기존 완료 상태(status) 그대로 유지해서 보내주기
-    const currentStatus = task?.done ? 'DONE' : 'TODO'; 
-    const categoryName = category?.name || "미분류";
-
+    const cat = project.categories.find(c => c.id === catId)
     try {
-      const response = await fetch(`http://152.67.199.142:3000/api/tasks/${editTaskId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          category: categoryName,
-          title: editTaskTitle.trim(),
-          status: currentStatus,
-          start_date: editTaskDate || null,
-          end_date: editTaskDate || null
-        }),
-      });
-
-      if (response.ok) {
-        updateProject({
-          ...project,
-          categories: project.categories.map((c) => c.id === catId
-            ? { ...c, tasks: c.tasks.map((t) => t.id === editTaskId ? { ...t, title: editTaskTitle.trim(), dueDate: editTaskDate } : t) }
-            : c),
-        })
-        setEditTaskId(null)
-        notify('할 일이 성공적으로 수정되었습니다! ✏️')
-      } else {
-        alert('할 일 수정에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('서버 통신 에러:', error);
+      await api('PUT', `/api/tasks/${editTaskId}`, {
+        category: cat.name,
+        title: editTaskTitle.trim(),
+        status: 'TODO', // 수정 시 TODO로 초기화 (원하시면 기존 status 유지되도록 변경 가능)
+        start_date: editTaskDate || null,
+        end_date: editTaskDate || null,
+      })
+      const data = await api('GET', `/api/projects/${project.id}/tasks`)
+      updateProject({ ...project, categories: data })
+      setEditTaskId(null)
+      notify('할 일이 수정되었습니다')
+    } catch (e) {
+      notify('할 일 수정에 실패했습니다')
     }
   }
 
+  // ----------------------------------------------------
+  //  화면 렌더링 (UI)
+  // ----------------------------------------------------
   return (
     <div>
       <div className="view-title">계획리스트</div>

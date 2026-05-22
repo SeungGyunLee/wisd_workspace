@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { uid, todayStr } from '../../../utils/helpers'
-
+import { useState, useEffect } from 'react' // useEffect 추가!
+import { todayStr } from '../../../utils/helpers' // uid는 백엔드에서 생성하므로 제거해도 무방합니다
+import { api, connectSocket } from '../../../utils/api' // api 도우미와 웹소켓 연결 도우미 추가!
 export default function CalendarView({ project, updateProject, notify }) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
@@ -8,6 +8,20 @@ export default function CalendarView({ project, updateProject, notify }) {
   const [selDate, setSelDate] = useState(todayStr())
   const [newTask, setNewTask] = useState('')
 
+  // ----------------------------------------------------
+  // 실시간 새로고침 (웹소켓) - 캘린더 화면에서도 실시간 작동!
+  // ----------------------------------------------------
+  useEffect(() => {
+    const socket = connectSocket(() => {
+      console.log('🔄 캘린더 화면: 누군가 일정을 변경했습니다!');
+      api('GET', `/api/projects/${project.id}/tasks`)
+        .then((data) => updateProject({ ...project, categories: data }))
+        .catch(() => {})
+    })
+    return () => socket?.disconnect()
+  }, [project.id])
+
+  // 기존 캘린더 날짜/태스크 계산 로직
   const allTasks = project.categories.flatMap((c) => c.tasks)
   const tasksByDate = {}
   allTasks.forEach((t) => {
@@ -32,60 +46,34 @@ export default function CalendarView({ project, updateProject, notify }) {
   const DAY = ['일', '월', '화', '수', '목', '금', '토']
   const selTasks = tasksByDate[selDate] || []
 
-// 캘린더에서 바로 태스크 추가 (백엔드 연동)
+  // ----------------------------------------------------
+  // 캘린더 태스크 추가 (백엔드 api 연동!)
+  // ----------------------------------------------------
   const addCalTask = async () => {
-    if (!newTask.trim()) return;
-    
-    // 작성자님의 원래 센스있는 방어 코드 유지! (카테고리 없으면 튕겨내기)
-    if (!project.categories.length) { 
-      notify('먼저 계획리스트에서 카테고리를 만들어주세요'); 
-      return; 
-    }
+    if (!newTask.trim()) return
+    if (!project.categories.length) { notify('먼저 계획리스트에서 카테고리를 만들어주세요'); return }
 
-    // 첫 번째 카테고리의 이름을 타겟으로 잡습니다.
+    // 첫 번째 카테고리를 타겟으로 잡기
     const targetCategoryName = project.categories[0].name;
 
     try {
-      // 1. 백엔드로 "이 날짜(selDate)에 일정 좀 추가해줘!" 라고 POST 쏘기
-      const response = await fetch('http://152.67.199.142:3000/api/tasks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          project_id: project.id,       // 현재 열려있는 프로젝트 방 번호
-          category: targetCategoryName, // 첫 번째 카테고리 이름
-          title: newTask.trim(),        // 입력한 일정 내용
-          start_date: selDate,          // 캘린더에서 선택한 날짜
-          end_date: selDate             // 캘린더에서 선택한 날짜
-        }),
+      // 1. api 도우미로 백엔드에 POST 전송 (토큰 자동 포함!)
+      await api('POST', '/api/tasks', {
+        project_id: project.id,
+        category: targetCategoryName,
+        title: newTask.trim(),
+        start_date: selDate, // 캘린더에서 선택한 날짜
+        end_date: selDate
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      // 2. 추가 성공 시, 최신 할 일 목록 다시 불러오기
+      const data = await api('GET', `/api/projects/${project.id}/tasks`);
+      updateProject({ ...project, categories: data });
 
-        // 2. 백엔드에서 생성해준 진짜 번호(taskId)를 달아서 포스트잇 만들기 (500 에러 방지!)
-        const task = { 
-          id: data.taskId, 
-          title: newTask.trim(), 
-          done: false, 
-          dueDate: selDate, 
-          pinned: false 
-        };
-
-        // 3. 프론트엔드 화면 업데이트 (첫 번째 카테고리에 쏙 밀어넣기)
-        updateProject({
-          ...project,
-          categories: project.categories.map((c, i) => i === 0 ? { ...c, tasks: [...c.tasks, task] } : c),
-        });
-        
-        setNewTask(''); // 입력칸 비우기
-        notify('캘린더에 일정이 추가되었습니다! 📅');
-      } else {
-        alert('일정 추가에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('서버 통신 에러:', error);
+      setNewTask('');
+      notify('캘린더에 일정이 추가되었습니다! 📅');
+    } catch (e) {
+      notify('일정 추가에 실패했습니다.');
     }
   }
 
