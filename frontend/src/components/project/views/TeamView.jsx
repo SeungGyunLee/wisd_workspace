@@ -1,28 +1,37 @@
 import { useState } from 'react'
 import { getAvatarColor, getInitials } from '../../../utils/helpers'
+import { api } from '../../../utils/api'
 
 export default function TeamView({ project, updateProject, user, users, notify }) {
   const [inviteId, setInviteId] = useState('')
 
-  const getName = (id) => users.find((u) => u.id === id)?.name || id
+  const getName = (id) => {
+    const found = project.memberDetails?.find((u) => u.id === id)
+    return found?.name || id
+  }
 
   // 팀원 초대
-  // 나중에 POST /api/projects/:id/members 로 교체
-  const invite = () => {
-    const t = users.find((u) => u.id === inviteId.trim())
-    if (!t) { notify('존재하지 않는 아이디입니다'); return }
-    if (project.members.includes(t.id)) { notify('이미 팀원입니다'); return }
-    updateProject({ ...project, members: [...project.members, t.id] })
-    setInviteId('')
-    notify(`${t.name}님을 초대했습니다`)
+  const invite = async () => {
+    if (!inviteId.trim()) return
+    try {
+      const data = await api('POST', `/api/projects/${project.id}/members`, { inviteId: inviteId.trim() })
+      updateProject({ ...project, members: [...project.members, data.user.id], memberDetails: [...(project.memberDetails || []), data.user] })
+      setInviteId('')
+      notify(`${data.user.name}님을 초대했습니다`)
+    } catch (e) {
+      notify(e?.error || '초대에 실패했습니다')
+    }
   }
 
   // 팀원 내보내기
-  // 나중에 DELETE /api/projects/:id/members/:userId 로 교체
-  const kick = (mid) => {
-    if (mid === user.id) { notify('자신은 내보낼 수 없습니다'); return }
-    if (mid === project.ownerId) { notify('프로젝트 소유자는 내보낼 수 없습니다'); return }
-    updateProject({ ...project, members: project.members.filter((id) => id !== mid) })
+  const kick = async (mid) => {
+    try {
+      await api('DELETE', `/api/projects/${project.id}/members/${mid}`)
+      updateProject({ ...project, members: project.members.filter((id) => id !== mid) })
+      notify('팀원이 제외되었습니다')
+    } catch (e) {
+      notify(e?.error || '내보내기에 실패했습니다')
+    }
   }
 
   return (
