@@ -126,7 +126,18 @@ export default function CalendarView({ project, updateProject, notify }) {
             {selTasks.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', padding: '6px 0' }}>이 날의 일정이 없습니다</div>}
             {selTasks.map((t) => (
               <div key={t.id} className="cal-task">
-                <div style={{ width: 13, height: 13, borderRadius: 3, background: t.done ? 'var(--dg)' : 'transparent', border: `2px solid ${t.done ? 'var(--dg)' : 'var(--border)'}`, flexShrink: 0 }} />
+                <div
+                      style={{ width: 13, height: 13, borderRadius: 3, background: t.done ? 'var(--dg)' : 'transparent', border: `2px solid ${t.done ? 'var(--dg)' : 'var(--border)'}`, flexShrink: 0, cursor: 'pointer' }}
+                      onClick={async () => {
+                      try {
+                            await api('PUT', `/api/tasks/${t.id}`, { status: t.done ? 'TODO' : 'DONE' })
+                            const data = await api('GET', `/api/projects/${project.id}/tasks`)
+                            updateProject({ ...project, categories: data })
+                            } catch {
+                                notify('상태 변경에 실패했습니다')
+                                    }
+                            }}
+                  />
                 <span style={{ color: t.done ? 'var(--muted)' : 'var(--dark)', textDecoration: t.done ? 'line-through' : '' }}>{t.title}</span>
                 <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--muted)', background: 'var(--hover)', padding: '1px 7px', borderRadius: 8 }}>
                   {project.categories.find((c) => c.tasks.some((tk) => tk.id === t.id))?.name}
