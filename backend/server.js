@@ -8,7 +8,10 @@ const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
-app.use(cors()); // 추가 (모든 프론트엔드의 접근을 허락함)
+app.use(cors({
+    origin: ["http://localhost:5173", "http://152.67.199.142:5173"]
+}));
+app.use(express.json()); // 중요: 클라이언트가 보내는 JSON 데이터를 읽기 위해 필요
 const port = process.env.PORT || 3000;
 app.use('/api/auth', authRouter);
 
@@ -33,11 +36,6 @@ io.on('connection', (socket) => {
         console.log(`🔴 팀원의 접속이 끊어졌습니다. (ID: ${socket.id})`);
     });
 });
-
-app.use(cors({
-    origin: ["http://localhost:5173", "http://152.67.199.142:5173"]
-}));
-app.use(express.json()); // 중요: 클라이언트가 보내는 JSON 데이터를 읽기 위해 필요
 
 const db = mysql.createConnection({
     host: process.env.LOCAL_DB_HOST,
