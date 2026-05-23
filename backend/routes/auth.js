@@ -97,5 +97,23 @@ router.get('/me', require('../middleware/auth').authMiddleware, (req, res) => {
         res.json(results[0]);
     });
 });
+// 5. 회원 탈퇴 API
+router.delete('/me', require('../middleware/auth').authMiddleware, (req, res) => {
+    const userId = req.userId;
+
+    const query = 'DELETE FROM users WHERE id = ?';
+    db.query(query, [userId], (err, result) => {
+        if (err) {
+            console.error('회원 탈퇴 에러:', err);
+            return res.status(500).json({ error: '서버 오류로 탈퇴 처리에 실패했습니다.' });
+        }
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: '이미 탈퇴되었거나 존재하지 않는 사용자입니다.' });
+        }
+
+        res.status(200).json({ message: '회원 탈퇴가 정상적으로 완료되었습니다.' });
+    });
+});
 
 module.exports = router;

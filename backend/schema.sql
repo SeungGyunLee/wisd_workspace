@@ -71,3 +71,19 @@ CREATE TABLE post_comments (
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
     FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- 1. 기존 프로젝트 테이블에 소유자(owner_id) 컬럼 추가 (없을 경우)
+ALTER TABLE projects ADD COLUMN owner_id VARCHAR(36) AFTER description;
+
+-- 2. 프로젝트 소유자 외래키 지정 (선택 사항)
+ALTER TABLE projects ADD FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
+
+-- 3. 프로젝트 멤버 관리 테이블 (다대다 관계)
+CREATE TABLE project_members (
+    project_id INT NOT NULL,
+    user_id VARCHAR(36) NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (project_id, user_id),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);

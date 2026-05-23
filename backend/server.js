@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
 const authRouter = require('./routes/auth');
+const { authMiddleware } = require('./middleware/auth');
 
 const http = require('http');
 const { Server } = require('socket.io');
@@ -196,4 +197,69 @@ app.get('/', (req, res) => {
 
 server.listen(3000, '0.0.0.0', () => {
     console.log('서버가 3000번 포트에서 실행 중입니다.');
+});
+
+// =====================================
+// 팀 관리 API 시작
+// =====================================
+
+// 1. 팀원 초대 API (이메일/아이디로 초대)
+app.post('/api/projects/:id/members', authMiddleware, (req, res) => {
+    const projectId = req.params.id;
+    const { inviteId } = req.body; // 프론트엔드에서 입력한 아이디(email)
+
+    if (!inviteId) return res.status(400).json({ error: '초대할 아이디를 입력해주세요.' });
+
+    // 1. 초대할 유저가 존재하는지 확인
+    db.query('SELECT id, display_name FROM users WHERE email = ?', [inviteId], (err, users) => {
+        if (err) return res.status(500).json({ error: '서버 에러가 발생했습니다.' });
+        if (users.length === 0) return res.status(404).json({ error: '존재하지 않는 아이디입니다.' });
+
+        const targetUser = users[0];
+
+        // 2. 이미 팀원인지 확인
+        db.query('SELECT * FROM project_members WHERE project_id = ? AND user_id = ?', [projectId, targetUser.id], (err, members) => {
+            if (err) return res.status(500).json({ error: '서버 에러가 발생했습니다.' });
+            if (members.length > 0) return res.status(400).json({ error: '이미 팀원으로 등록되어 있습니다.' });
+
+            // 3. 팀원으로 추가
+            db.query('INSERT INTO project_members (project_id, user_id) VALUES (?, ?)', [projectId, targetUser.id], (err) => {
+                if (err) return res.status(500).json({ error: '팀원 추가에 실패했습니다.' });
+                
+                res.status(200).json({
+                    message: `${targetUser.display_name}님을 초대했습니다!`,
+                    user: { id: targetUser.id, name: targetUser.display_name }
+                });
+            });
+        });
+    });
+});
+
+// 2. 팀원 내보내기 API
+app.delete('/api/projects/:id/members/:userId', authMiddleware, (req, res) => {
+    const projectId = req.params.id;
+    const targetUserId = req.params.userId;
+    const currentUserId = req.userId; // 현재 로그인한 유저
+
+    // 프로젝트 소유자 확인
+    db.query('SELECT owner_id FROM projects WHERE id = ?', [projectId], (err, projects) => {
+        if (err || projects.length === 0) return res.status(404).json({ error: '프로젝트를 찾을 수 없습니다.' });
+        
+        const ownerId = projects[0].owner_id;
+
+        // 예외 1: 소유자를 내보내려 할 때
+        if (targetUserId === ownerId) {
+            return res.status(400).json({ error: '프로젝트 소유자는 내보낼 수 없습니다.' });
+        }
+
+        // 예외 2: 권한 확인 (자신이 스스로 나가거나, 소유자가 남을 내보내는 경우만 허용)
+        if (currentUserId !== ownerId && currentUserId !== targetUserId) {
+            return res.status(403).json({ error: '팀원을 내보낼 권한이 없습니다.' });
+        }
+
+        db.query('DELETE FROM project_members WHERE project_id = ? AND user_id = ?', [projectId, targetUserId], (err) => {
+            if (err) return res.status(500).json({ error: '팀원 내보내기에 실패했습니다.' });
+            res.status(200).json({ message: '팀원이 성공적으로 제외되었습니다.' });
+        });
+    });
 });
