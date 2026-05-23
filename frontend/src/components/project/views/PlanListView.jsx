@@ -137,13 +137,14 @@ export default function PlanListView({ project, updateProject, notify }) {
   const toggleTask = async (catId, taskId) => {
     const cat = project.categories.find(c => c.id === catId)
     const task = cat.tasks.find(t => t.id === taskId)
+    const safeDate = task.dueDate ? task.dueDate.substring(0, 10) : null;
     try {
       await api('PUT', `/api/tasks/${taskId}`, {
         category: cat.name,
         title: task.title,
         status: task.done ? 'TODO' : 'DONE',
-        start_date: task.dueDate || null,
-        end_date: task.dueDate || null,
+        start_date: safeDate,
+        end_date: safeDate,
       })
       const data = await api('GET', `/api/projects/${project.id}/tasks`)
       updateProject({ ...project, categories: data })
@@ -153,9 +154,23 @@ export default function PlanListView({ project, updateProject, notify }) {
   }
 
   // 태스크 대시보드 핀(Pin) 토글 (프론트엔드 전용)
-  const togglePin = (catId, taskId) =>
-    updateProject({ ...project, categories: project.categories.map((c) => c.id === catId ? { ...c, tasks: c.tasks.map((t) => t.id === taskId ? { ...t, pinned: !t.pinned } : t) } : c) })
-
+  const togglePin = (catId, taskId) => {
+  const updatedCategories = project.categories.map((cat) => {
+    if (cat.id === catId) {
+      return {
+        ...cat,
+        tasks: cat.tasks.map((t) => 
+          t.id === taskId ? { ...t, pinned: !t.pinned } : t
+        )
+      };
+    }
+    return cat;
+  });
+  
+  // 여기서 핵심! updateProject를 통해 
+  // 프로젝트 전체 상태를 업데이트하면 화면 이동을 해도 상태가 유지됩니다.
+  updateProject({ ...project, categories: updatedCategories });
+  };
   // 태스크 삭제
   const delTask = async (catId, taskId) => {
     try {
