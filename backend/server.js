@@ -4,7 +4,7 @@ const cors = require('cors');
 const mysql = require('mysql2');
 const authRouter = require('./routes/auth');
 
-const http = require('http'); 
+const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();

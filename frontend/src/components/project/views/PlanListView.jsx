@@ -66,27 +66,48 @@ export default function PlanListView({ project, updateProject, notify }) {
   }
 
   // 카테고리 삭제 (프론트엔드 임시 처리)
-  const delCat = (id) => {
-    if (!window.confirm('카테고리를 삭제하시겠습니까?')) return;
-    updateProject({ ...project, categories: project.categories.filter((c) => c.id !== id) })
-    notify('카테고리가 삭제되었습니다')
+  const delCat = async (id) => {
+    if (!window.confirm('카테고리와 안의 모든 할 일이 삭제됩니다. 계속하시겠습니까?')) return;
+    
+    // 지울 카테고리의 정보 찾기
+    const cat = project.categories.find(c => c.id === id);
+    if (!cat) return;
+
+    try {
+      // 백엔드에 진짜 삭제하라고 명령 내리기
+      await api('DELETE', `/api/projects/${project.id}/categories`, { categoryName: cat.name });
+      
+      // DB 삭제가 완료되면 최신 데이터 다시 불러오기
+      // 이부분 api 명세 오류 가능성 있음
+      const data = await api('GET', `/api/projects/${project.id}/tasks`);
+      updateProject({ ...project, categories: data });
+      notify('카테고리가 삭제되었습니다');
+    } catch (e) {
+      console.error('카테고리 삭제 실패:', e); // 에러 확인용
+      notify('카테고리 삭제에 실패했습니다');
+    }
   }
 
   // 카테고리 이름 수정
   const saveCat = async (id) => {
-    if (!editCatName.trim()) return
-    const cat = project.categories.find(c => c.id === id)
+    if (!editCatName.trim()) return;
+    const cat = project.categories.find(c => c.id === id);
+    
     try {
+      // 백엔드에 카테고리 이름 수정 요청
       await api('PUT', `/api/projects/${project.id}/categories`, {
         oldName: cat.name,
         newName: editCatName.trim(),
-      })
-      const data = await api('GET', `/api/projects/${project.id}/tasks`)
-      updateProject({ ...project, categories: data })
-      setEditCatId(null)
-      notify('카테고리 이름이 수정되었습니다')
+      });
+      
+      // 수정 완료 후 최신 데이터 다시 불러오기
+      const data = await api('GET', `/api/projects/${project.id}/tasks`);
+      updateProject({ ...project, categories: data });
+      setEditCatId(null);
+      notify('카테고리 이름이 수정되었습니다');
     } catch (e) {
-      notify('카테고리 수정에 실패했습니다')
+      console.error('카테고리 수정 실패:', e); // 🚨 F12 콘솔에서 에러 원인 파악용
+      notify('카테고리 수정에 실패했습니다');
     }
   }
 
@@ -147,7 +168,7 @@ export default function PlanListView({ project, updateProject, notify }) {
     }
   }
 
-  const startEditTask = (task) => { setEditTaskId(task.id); setEditTaskTitle(task.title); setEditTaskDate(task.dueDate || '') }
+  const startEditTask = (task) => { setEditTaskId(task.id); setEditTaskTitle(task.title); setEditTaskDate(task.dueDate ? task.dueDate.substring(0, 10) : '') }
 
   // 태스크 수정 완료
   const saveTask = async (catId) => {
@@ -252,7 +273,7 @@ export default function PlanListView({ project, updateProject, notify }) {
                           )}
                         </div>
                         <span className={`task-title ${task.done ? 'done' : ''}`}>{task.title}</span>
-                        {task.dueDate && <span className="task-date">{task.dueDate}</span>}
+                        {task.dueDate && <span className="task-date">{task.dueDate.substring(0, 10)}</span>}
                         <button
                           style={{ fontSize: 10, color: 'var(--muted)', padding: '2px 7px', borderRadius: 5, background: 'transparent', border: '1px solid var(--border)', cursor: 'pointer', transition: '.15s', fontFamily: 'inherit' }}
                           onClick={() => startEditTask(task)}

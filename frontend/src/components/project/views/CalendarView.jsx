@@ -14,9 +14,14 @@ export default function CalendarView({ project, updateProject, notify }) {
   useEffect(() => {
     const socket = connectSocket(() => {
       console.log('🔄 캘린더 화면: 누군가 일정을 변경했습니다!');
-      api('GET', `/api/projects/${project.id}/tasks`)
-        .then((data) => updateProject({ ...project, categories: data }))
-        .catch(() => {})
+      
+      // DB 저장 시간을 벌어주기 위해 0.1초 딜레이 추가
+      setTimeout(() => {
+        api('GET', `/api/projects/${project.id}/tasks`)
+          .then((data) => updateProject({ ...project, categories: data }))
+          .catch(() => {})
+      }, 100);
+      
     })
     return () => socket?.disconnect()
   }, [project.id])
@@ -26,8 +31,10 @@ export default function CalendarView({ project, updateProject, notify }) {
   const tasksByDate = {}
   allTasks.forEach((t) => {
     if (t.dueDate) {
-      if (!tasksByDate[t.dueDate]) tasksByDate[t.dueDate] = []
-      tasksByDate[t.dueDate].push(t)
+      const dateOnly = t.dueDate.substring(0, 10); 
+      
+      if (!tasksByDate[dateOnly]) tasksByDate[dateOnly] = []
+      tasksByDate[dateOnly].push(t)
     }
   })
 
