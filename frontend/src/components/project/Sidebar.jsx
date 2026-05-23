@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { WisdLogo, WisdIcon } from '../common/Logo'
 import { ICONS } from '../../assets/icons'
 import { getAvatarColor, getInitials } from '../../utils/helpers'
@@ -22,23 +22,6 @@ export default function Sidebar({
   user, project, activeView, setActiveView,
   doLogout, setCurrentUser, showToast, onCloseProject,
 }) {
-  const [editingNick, setEditingNick] = useState(false)
-  const nickInputRef = useRef(null)
-
-  // 닉네임 저장
-  const saveNick = async () => {
-    const v = nickInputRef.current?.value.trim()
-    if (!v) return
-    try {
-      const data = await api('PATCH', '/api/auth/me', { name: v })
-      setCurrentUser((u) => ({ ...u, name: data.name }))
-      setEditingNick(false)
-      showToast('닉네임이 변경됐어요')
-    } catch (e) {
-      showToast('닉네임 변경에 실패했습니다')
-    }
-  }
-
   return (
     <div className="sidebar">
       <div className="sidebar-logo">
@@ -61,42 +44,9 @@ export default function Sidebar({
           <span className="sidebar-user-name">{user.name}</span>
         </div>
         <div className="sidebar-user-actions">
-          <span className="sidebar-user-btn" onClick={() => setEditingNick((v) => !v)}>닉네임 수정</span>
-          <span style={{ color: 'rgba(255,255,255,.12)', fontSize: 10 }}>|</span>
           <span className="sidebar-user-btn" onClick={() => showToast('탈퇴 처리됩니다')}>탈퇴하기</span>
         </div>
-
-        {/* 닉네임 수정 인라인 입력창 */}
-        {editingNick && (
-          <div style={{ marginTop: 8, display: 'flex', gap: 5 }}>
-            <input
-              ref={nickInputRef}
-              defaultValue={user.name}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') saveNick()
-                if (e.key === 'Escape') setEditingNick(false)
-              }}
-              style={{
-                flex: 1, padding: '5px 8px', borderRadius: 6,
-                border: '1px solid rgba(255,255,255,.2)',
-                background: 'rgba(255,255,255,.08)',
-                color: 'rgba(250,246,236,.9)', fontSize: 11, outline: 'none',
-              }}
-            />
-            <button
-              onClick={saveNick}
-              style={{
-                padding: '5px 10px', borderRadius: 6,
-                background: 'rgba(95,169,95,.3)',
-                border: '1px solid rgba(95,169,95,.4)',
-                color: 'rgba(250,246,236,.9)', fontSize: 11, cursor: 'pointer',
-              }}
-            >확인</button>
-          </div>
-        )}
-      </div>
-
+        
       {/* 네비게이션 메뉴 */}
       <div className="sidebar-nav">
         {NAV.map((item) => (
