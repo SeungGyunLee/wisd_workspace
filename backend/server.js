@@ -80,10 +80,15 @@ app.get('/api/projects', (req, res) => {
 app.put('/api/projects/:projectId/categories', (req, res) => {
     const projectId = req.params.projectId;
     const { oldName, newName } = req.body;
+    
+    // 이 프로젝트(projectId)에서 예전 카테고리 이름(oldName)을 가진 모든 할 일을 새 이름(newName)으로 바꿔라!
     const query = 'UPDATE tasks SET category = ? WHERE project_id = ? AND category = ?';
+    
     db.query(query, [newName, projectId, oldName], (err, result) => {
-        if (err) return res.status(500).json({ error: 'DB 업데이트 실패' });
-        res.json({ message: '카테고리 이름 수정 성공!' });
+        if (err) return res.status(500).json({ error: '카테고리 수정 실패' });
+        
+        io.emit('task_updated'); // 다 바꿨으면 프론트엔드 화면 새로고침 알림!
+        res.status(200).json({ message: '카테고리 수정 성공!' });
     });
 });
 
@@ -99,12 +104,18 @@ app.put('/api/projects/:id', (req, res) => {
 });
 
 // 5. 프로젝트 삭제 API (Delete - DELETE)
-app.delete('/api/projects/:id', (req, res) => {
-    const projectId = req.params.id;
-    const query = 'DELETE FROM projects WHERE id = ?';
-    db.query(query, [projectId], (err, result) => {
-        if (err) return res.status(500).json({ error: '프로젝트 삭제 실패' });
-        res.status(200).json({ message: '프로젝트 삭제 성공!' });
+app.delete('/api/projects/:projectId/categories', (req, res) => {
+    const projectId = req.params.projectId;
+    const { categoryName } = req.body;
+    
+    // 이 프로젝트(projectId)에서 해당 카테고리 이름(categoryName)을 가진 모든 할 일을 싹 다 지워라!
+    const query = 'DELETE FROM tasks WHERE project_id = ? AND category = ?';
+    
+    db.query(query, [projectId, categoryName], (err, result) => {
+        if (err) return res.status(500).json({ error: '카테고리 삭제 실패' });
+        
+        io.emit('task_updated'); // 다 지웠으면 프론트엔드 화면 새로고침 알림!
+        res.status(200).json({ message: '카테고리 삭제 성공!' });
     });
 });
 
