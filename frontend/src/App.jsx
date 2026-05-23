@@ -46,23 +46,19 @@ export default function App() {
   useEffect(() => {
     const fetchRealProjects = async () => {
       try {
-        const response = await fetch('http://152.67.199.142:3000/api/projects');
-        if (response.ok) {
-          const data = await response.json();
-          
-          // 백엔드 데이터(MySQL)를 프론트엔드 입맛에 맞게 변환
-          const formattedProjects = data.map(p => ({
-            id: p.id,
-            name: p.name,
-            ownerId: currentUser ? currentUser.id : 'demo', 
-            members: [currentUser ? currentUser.id : 'demo'], 
-            categories: [], 
-            posts: [],
-            createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
-          }));
-          
-          setProjects(formattedProjects);
-        }
+        const data = await api('GET', '/api/projects');
+            if (data) {
+                    const formattedProjects = data.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    ownerId: p.ownerId || p.owner_id,
+                    members: p.members || [],
+                    categories: [],
+                    posts: [],
+                    createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+                      }));
+                      setProjects(formattedProjects);
+                    }
       } catch (error) {
         console.error('백엔드에서 프로젝트를 가져오는데 실패했습니다:', error);
       }
@@ -128,13 +124,11 @@ export default function App() {
   if (screen === 'auth') {
     return (
       <AuthScreen
-        users={users}
-        setUsers={setUsers}
         setCurrentUser={setCurrentUser}
         setScreen={setScreen}
         authMode={authMode}
         setAuthMode={setAuthMode}
-      />
+              />
     )
   }
 
