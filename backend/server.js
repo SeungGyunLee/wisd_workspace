@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
+const authRouter = require('./routes/auth');
+app.use('/api/auth', authRouter);
 
 const http = require('http'); 
 const { Server } = require('socket.io');
@@ -119,7 +121,7 @@ app.post('/api/tasks', (req, res) => {
     
     db.query(query, [project_id, category, title, start_date, end_date], (err, result) => {
         if (err) {
-            console.error('할일 DB 저장 에러:', err); // 👈 에러의 진짜 원인을 터미널에 띄워줍니다
+            console.error('할일 DB 저장 에러:', err); // 에러의 진짜 원인을 터미널에 띄워줍니다
             return res.status(500).json({ error: '할 일 생성에 실패했습니다.' });
         }
         io.emit('task_updated');
