@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2');
 const authRouter = require('./routes/auth');
-app.use('/api/auth', authRouter);
 
 const http = require('http'); 
 const { Server } = require('socket.io');
@@ -11,6 +10,7 @@ const { Server } = require('socket.io');
 const app = express();
 app.use(cors()); // 추가 (모든 프론트엔드의 접근을 허락함)
 const port = process.env.PORT || 3000;
+app.use('/api/auth', authRouter);
 
 // --- 기존 app 코드를 http 서버로 감싸줍니다 (추가) ---
 const server = http.createServer(app);
