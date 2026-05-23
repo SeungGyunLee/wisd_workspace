@@ -44,7 +44,16 @@ export default function Sidebar({
           <span className="sidebar-user-name">{user.name}</span>
         </div>
         <div className="sidebar-user-actions">
-          <span className="sidebar-user-btn" onClick={() => showToast('탈퇴 처리됩니다')}>탈퇴하기</span>
+          <span className="sidebar-user-btn" onClick={async () => {
+                  if (!confirm('정말 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.')) return
+                  try {
+                 await api('DELETE', '/api/auth/me')
+                  localStorage.removeItem('token')
+                  doLogout()
+                        } catch (e) {
+                                showToast(e?.error || '탈퇴 처리에 실패했습니다')
+                                     }
+                  }}>탈퇴하기</span>
         </div>
         
       {/* 네비게이션 메뉴 */}
