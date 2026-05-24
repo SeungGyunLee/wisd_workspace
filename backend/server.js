@@ -46,12 +46,14 @@ io.on('connection', (socket) => {
     });
 });
 
-const db = mysql.createConnection({
+const db = mysql.createPool({
     host: process.env.LOCAL_DB_HOST,
     port: process.env.LOCAL_DB_PORT,
     user: process.env.LOCAL_DB_USER,
     password: process.env.LOCAL_DB_PASSWORD,
-    database: process.env.LOCAL_DB_NAME
+    database: process.env.LOCAL_DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10
 });
 
 db.connect((err) => {
@@ -225,8 +227,8 @@ app.get('/', (req, res) => {
     res.send('협업 워크스페이스 백엔드 서버 구동 확인');
 });
 
-server.listen(3000, '0.0.0.0', () => {
-    console.log('서버가 3000번 포트에서 실행 중입니다.');
+server.listen(port, '0.0.0.0', () => {
+    console.log(`서버가 ${port}번 포트에서 실행 중입니다.`);
 });
 
 // =====================================
@@ -375,9 +377,9 @@ app.get('/api/projects/:projectId/posts', authMiddleware, async (req, res) => {
         });
 
         const fullPosts = await Promise.all(posts.map(async (post) => {
-            const images = await new Promise(resolve => db.query('SELECT id, file_name as name, file_size as size, file_type as type, file_url as src, is_image as isImg FROM post_files WHERE post_id = ?', [post.id], (err, res) => resolve(res || [])));
-            const likes = await new Promise(resolve => db.query('SELECT user_id FROM post_likes WHERE post_id = ?', [post.id], (err, res) => resolve((res || []).map(l => l.user_id))));
-            const comments = await new Promise(resolve => db.query('SELECT id, author_id as authorId, content, created_at as timestamp FROM post_comments WHERE post_id = ? ORDER BY created_at ASC', [post.id], (err, res) => resolve(res || [])));
+            const images   = await new Promise(resolve => db.query('...', [post.id], (err, rows) => resolve(rows || [])));
+            const likes    = await new Promise(resolve => db.query('...', [post.id], (err, rows) => resolve((rows || []).map(l => l.user_id))));
+            const comments = await new Promise(resolve => db.query('...', [post.id], (err, rows) => resolve(rows || [])));
 
             return {
                 id: post.id, authorId: post.author_id, content: post.content,
