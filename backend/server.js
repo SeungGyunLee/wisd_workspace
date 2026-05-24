@@ -105,18 +105,20 @@ app.put('/api/projects/:id', (req, res) => {
 });
 
 // 5. 프로젝트 삭제 API (Delete - DELETE)
-app.delete('/api/projects/:projectId/categories', (req, res) => {
-    const projectId = req.params.projectId;
-    const { categoryName } = req.body;
-    
-    // 이 프로젝트(projectId)에서 해당 카테고리 이름(categoryName)을 가진 모든 할 일을 싹 다 지워라!
-    const query = 'DELETE FROM tasks WHERE project_id = ? AND category = ?';
-    
-    db.query(query, [projectId, categoryName], (err, result) => {
-        if (err) return res.status(500).json({ error: '카테고리 삭제 실패' });
+app.delete('/api/projects/:id', (req, res) => {
+    const projectId = req.params.id;
+
+    // 1단계: 프로젝트 지우기 전에 안에 있는 할 일(tasks)부터 싹 비워줌
+    db.query('DELETE FROM tasks WHERE project_id = ?', [projectId], (err, result) => {
+        if (err) return res.status(500).json({ error: '관련 할 일 삭제 실패' });
         
-        io.emit('task_updated'); // 다 지웠으면 프론트엔드 화면 새로고침 알림!
-        res.status(200).json({ message: '카테고리 삭제 성공!' });
+        // 2단계: 할 일이 다 지워졌으니 프로젝트 본체 삭제!
+        db.query('DELETE FROM projects WHERE id = ?', [projectId], (err, result) => {
+            if (err) return res.status(500).json({ error: '프로젝트 삭제 실패' });
+            
+            io.emit('task_updated'); 
+            res.status(200).json({ message: '프로젝트 영구 삭제 성공!' });
+        });
     });
 });
 
