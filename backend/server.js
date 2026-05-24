@@ -15,9 +15,7 @@ const { Server } = require('socket.io');
 
 const app = express();
 app.use(cors({
-    origin: ["http://localhost:5173", "http://152.67.199.142:5173"],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+    origin: ["http://localhost:5173", "http://152.67.199.142:5173"]
 }));
 const port = process.env.PORT || 3000;
 app.use(express.json()); 
@@ -70,9 +68,9 @@ db.getConnection((err, conn) => {
 // =====================================
 
 // 1. 프로젝트 생성 API (소유자 저장 및 멤버 자동 등록 완료)
-app.post('/api/projects', authMiddleware, (req, res) => {
+app.post('/api/projects', authMiddleware, (req, res) => { // 🔴 authMiddleware 추가
     const { name, description } = req.body;
-    const ownerId = req.userId;
+    const ownerId = req.userId; // 🔴 토큰에서 인증된 유저의 고유 UUID를 꺼냅니다.
 
     // projects 테이블에 생성한 사람의 id(owner_id)를 함께 저장합니다.
     const query = 'INSERT INTO projects (name, description, owner_id) VALUES (?, ?, ?)';
@@ -80,7 +78,7 @@ app.post('/api/projects', authMiddleware, (req, res) => {
         if (err) return res.status(500).json({ error: '프로젝트 생성 실패' });
         const projectId = result.insertId;
 
-        //프로젝트를 만든 방장(소유자)도 project_members 테이블에 팀원으로 자동 등록해 줍니다.
+        // 🔴 중요: 프로젝트를 만든 방장(소유자)도 project_members 테이블에 팀원으로 자동 등록해 줍니다.
         const memberQuery = 'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)';
         db.query(memberQuery, [projectId, ownerId], (memberErr) => {
             if (memberErr) return res.status(500).json({ error: '프로젝트 멤버 등록 실패' });
@@ -91,10 +89,10 @@ app.post('/api/projects', authMiddleware, (req, res) => {
 });
 
 // 2. 프로젝트 목록 조회 API (토큰 기반 본인 프로젝트만 필터링 완료)
-app.get('/api/projects', authMiddleware, (req, res) => {
-    const userId = req.userId;
+app.get('/api/projects', authMiddleware, (req, res) => { // 🔴 authMiddleware 추가
+    const userId = req.userId; // 🔴 토큰에서 인증된 유저의 고유 UUID를 꺼냅니다.
 
-    //내가 방장이거나(owner_id), project_members 테이블에 팀원으로 들어가 있는 프로젝트만 골라서 가져옵니다.
+    // 🔴 내가 방장이거나(owner_id), project_members 테이블에 팀원으로 들어가 있는 프로젝트만 골라서 가져옵니다.
     const query = `
         SELECT DISTINCT p.* FROM projects p
         LEFT JOIN project_members pm ON p.id = pm.project_id
@@ -293,31 +291,6 @@ app.delete('/api/projects/:id/members/:userId', authMiddleware, (req, res) => {
         db.query('DELETE FROM project_members WHERE project_id = ? AND user_id = ?', [projectId, targetUserId], (err) => {
             if (err) return res.status(500).json({ error: '팀원 내보내기에 실패했습니다.' });
             res.status(200).json({ message: '팀원이 성공적으로 제외되었습니다.' });
-        });
-    });
-});
-// 3. 팀원 목록 조회 API (GET)
-app.get('/api/projects/:id/members', authMiddleware, (req, res) => {
-    const projectId = req.params.id;
-
-    // 로컬 DB에서 멤버 확인
-    db.query('SELECT user_id, joined_at FROM project_members WHERE project_id = ?', [projectId], (err, members) => {
-        if (err) return res.status(500).json({ error: '멤버 조회 실패' });
-        if (members.length === 0) return res.status(200).json([]);
-
-        const userIds = members.map(m => m.user_id);
-        const placeholders = userIds.map(() => '?').join(',');
-        
-        // TiDB에서 유저 상세 정보 가져오기
-        authDb.query(`SELECT id, email as loginId, display_name as name FROM users WHERE id IN (${placeholders})`, userIds, (err, users) => {
-            if (err) return res.status(500).json({ error: '유저 정보 조회 실패' });
-
-            const result = users.map(user => {
-                const memberInfo = members.find(m => m.user_id === user.id);
-                return { ...user, joined_at: memberInfo.joined_at };
-            });
-
-            res.status(200).json(result);
         });
     });
 });
