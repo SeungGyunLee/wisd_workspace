@@ -18,8 +18,8 @@ app.use(cors({
     origin: ["http://localhost:5173", "http://152.67.199.142:5173"]
 }));
 const port = process.env.PORT || 3000;
-app.use('/api/auth', authRouter);
 app.use(express.json()); 
+app.use('/api/auth', authRouter);
 app.use('/uploads', express.static('uploads'));
 
 // --- 기존 app 코드를 http 서버로 감싸줍니다 (추가) ---
