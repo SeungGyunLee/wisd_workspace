@@ -294,6 +294,31 @@ app.delete('/api/projects/:id/members/:userId', authMiddleware, (req, res) => {
         });
     });
 });
+// 3. 팀원 목록 조회 API (GET)
+app.get('/api/projects/:id/members', authMiddleware, (req, res) => {
+    const projectId = req.params.id;
+
+    // 로컬 DB에서 멤버 확인
+    db.query('SELECT user_id, joined_at FROM project_members WHERE project_id = ?', [projectId], (err, members) => {
+        if (err) return res.status(500).json({ error: '멤버 조회 실패' });
+        if (members.length === 0) return res.status(200).json([]);
+
+        const userIds = members.map(m => m.user_id);
+        const placeholders = userIds.map(() => '?').join(',');
+        
+        // TiDB에서 유저 상세 정보 가져오기
+        authDb.query(`SELECT id, email as loginId, display_name as name FROM users WHERE id IN (${placeholders})`, userIds, (err, users) => {
+            if (err) return res.status(500).json({ error: '유저 정보 조회 실패' });
+
+            const result = users.map(user => {
+                const memberInfo = members.find(m => m.user_id === user.id);
+                return { ...user, joined_at: memberInfo.joined_at };
+            });
+
+            res.status(200).json(result);
+        });
+    });
+});
 
 // =====================================
 // 게시판(중간 공유) & 파일 업로드 API 시작
