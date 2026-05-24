@@ -129,14 +129,32 @@ export default function CalendarView({ project, updateProject, notify }) {
                 <div
                       style={{ width: 13, height: 13, borderRadius: 3, background: t.done ? 'var(--dg)' : 'transparent', border: `2px solid ${t.done ? 'var(--dg)' : 'var(--border)'}`, flexShrink: 0, cursor: 'pointer' }}
                       onClick={async () => {
-                      try {
-                            await api('PUT', `/api/tasks/${t.id}`, { status: t.done ? 'TODO' : 'DONE' })
-                            const data = await api('GET', `/api/projects/${project.id}/tasks`)
-                            updateProject({ ...project, categories: data })
-                            } catch {
-                                notify('상태 변경에 실패했습니다')
-                                    }
-                            }}
+                        try {
+                          // 1. 현재 클릭한 할 일이 속한 카테고리 찾기 (백엔드에 보내기 위함)
+                          const cat = project.categories.find(c => c.tasks.some(tk => tk.id === t.id));
+                          if (!cat) return;
+                        
+                          // 2. 날짜 에러 방지용: 10자리(YYYY-MM-DD)로 깔끔하게 자르기
+                          const safeDate = t.dueDate ? t.dueDate.substring(0, 10) : null;
+                        
+                          // 3. 백엔드가 요구하는 5가지 데이터 모두 꽉 채워서 보내기!
+                          await api('PUT', `/api/tasks/${t.id}`, {
+                            category: cat.name,
+                            title: t.title,
+                            status: t.done ? 'TODO' : 'DONE', // 상태만 반전
+                            start_date: safeDate,             // 캘린더 날짜 그대로 넣기
+                            end_date: safeDate                // 캘린더 날짜 그대로 넣기
+                          });
+                        
+                          // 4. 성공하면 최신 데이터 다시 불러오기
+                          const data = await api('GET', `/api/projects/${project.id}/tasks`);
+                          updateProject({ ...project, categories: data });
+
+                        } catch (e) {
+                          console.error('캘린더 완료 처리 실패:', e); // F12에서 에러 원인 확인용
+                          notify('상태 변경에 실패했습니다');
+                        }
+                      }}
                   />
                 <span style={{ color: t.done ? 'var(--muted)' : 'var(--dark)', textDecoration: t.done ? 'line-through' : '' }}>{t.title}</span>
                 <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--muted)', background: 'var(--hover)', padding: '1px 7px', borderRadius: 8 }}>

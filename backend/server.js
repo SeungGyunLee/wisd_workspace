@@ -151,6 +151,22 @@ app.delete('/api/projects/:id', (req, res) => {
     });
 });
 
+// 카테고리 삭제 API (Delete Category)
+app.delete('/api/projects/:projectId/categories', (req, res) => {
+    const projectId = req.params.projectId;
+    const { categoryName } = req.body;
+    
+    // 이 프로젝트(projectId)에서 해당 카테고리 이름(categoryName)을 가진 모든 할 일을 싹 다 지워라!
+    const query = 'DELETE FROM tasks WHERE project_id = ? AND category = ?';
+    
+    db.query(query, [projectId, categoryName], (err, result) => {
+        if (err) return res.status(500).json({ error: '카테고리 삭제 실패' });
+        
+        io.emit('task_updated'); // 삭제 후 프론트엔드 전체 새로고침!
+        res.status(200).json({ message: '카테고리 삭제 성공!' });
+    });
+});
+
 // =====================================
 // 할 일(Task) CRUD API 시작
 // =====================================

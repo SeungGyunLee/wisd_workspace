@@ -21,7 +21,25 @@ export default function PlanListView({ project, updateProject, notify }) {
     const fetchTasks = async () => {
       try {
         const data = await api('GET', `/api/projects/${project.id}/tasks`);
-        updateProject({ ...project, categories: data });
+        
+        // 🚨 덮어쓰기 전에 기존 핀 정보를 살려내는 마법의 코드!
+        const mergedCategories = data.map(cat => ({
+          ...cat,
+          tasks: cat.tasks.map(t => {
+            // 기존 project.categories에서 지금 보고 있는 태스크를 찾습니다.
+            const existingCat = project.categories?.find(c => c.name === cat.name);
+            const existingTask = existingCat?.tasks?.find(tk => tk.id === t.id);
+            
+            return {
+              ...t,
+              // 기존에 핀이 꽂혀있었으면 true 유지, 아니면 false
+              pinned: existingTask ? existingTask.pinned : false 
+            };
+          })
+        }));
+
+        // 핀 정보가 합쳐진(merged) 안전한 데이터로 업데이트!
+        updateProject({ ...project, categories: mergedCategories });
       } catch (err) {
         console.error('할 일 목록 로드 실패:', err);
       }
