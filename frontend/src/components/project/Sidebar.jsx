@@ -4,7 +4,6 @@ import { ICONS } from '../../assets/icons'
 import { getAvatarColor, getInitials } from '../../utils/helpers'
 import { api } from '../../utils/api'
 
-// 메뉴 목록
 const NAV = [
   { id: 'dashboard', text: '대시보드' },
   { id: 'progress', text: '진행도' },
@@ -29,13 +28,11 @@ export default function Sidebar({
         <WisdLogo size={17} light />
       </div>
 
-      {/* 현재 프로젝트 표시 */}
       <div className="sidebar-project" onClick={() => setActiveView('dashboard')}>
         <div className="sidebar-project-label">현재 프로젝트</div>
         <div className="sidebar-project-name">{project.name}</div>
       </div>
 
-      {/* 유저 정보 + 닉네임 수정 */}
       <div className="sidebar-user">
         <div className="sidebar-user-row">
           <div className="sidebar-avatar" style={{ background: getAvatarColor(user.name) }}>
@@ -45,18 +42,18 @@ export default function Sidebar({
         </div>
         <div className="sidebar-user-actions">
           <span className="sidebar-user-btn" onClick={async () => {
-                  if (!confirm('정말 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.')) return
-                  try {
-                 await api('DELETE', '/api/auth/me')
-                  localStorage.removeItem('token')
-                  doLogout()
-                        } catch (e) {
-                                showToast(e?.error || '탈퇴 처리에 실패했습니다')
-                                     }
-                  }}>탈퇴하기</span>
+            if (!confirm('정말 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.')) return
+            try {
+              await api('DELETE', '/api/auth/me')
+              localStorage.removeItem('token')
+              doLogout()
+            } catch (e) {
+              showToast(e?.error || '탈퇴 처리에 실패했습니다')
+            }
+          }}>탈퇴하기</span>
         </div>
-        
-      {/* 네비게이션 메뉴 */}
+      </div>
+
       <div className="sidebar-nav">
         {NAV.map((item) => (
           <div
