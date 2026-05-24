@@ -1,55 +1,46 @@
 import { useState, useEffect } from 'react'
 import { WisdLogo, WisdIcon } from '../common/Logo'
-import { uid, fmtDate, getAvatarColor, getInitials, getProgress } from '../../utils/helpers'
-import { api } from '../../utils/api' // api 도우미 사용
+import { fmtDate, getAvatarColor, getInitials, getProgress } from '../../utils/helpers'
+import { api } from '../../utils/api'
 
 export default function ProjectsScreen({ user, projects, setProjects, navigateToProject, setScreen, doLogout }) {
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
 
-  // 1. 화면 켜질 때 프로젝트 목록 불러오기
+  // 화면 켜질 때 프로젝트 목록 불러오기
   useEffect(() => {
     api('GET', '/api/projects')
       .then((data) => setProjects(data.map(p => ({
         ...p,
-        members: [user.id],
+        members: p.members || [user.id],
         categories: [],
         posts: [],
         createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
       }))))
       .catch((err) => console.error('프로젝트를 불러오지 못했습니다.', err))
   }, [])
-  
-  // 2. 새 프로젝트 생성 (백엔드 연동)
+
+  // 새 프로젝트 생성
   const createProject = async () => {
     if (!newName.trim()) return
-
     try {
-      // api 도우미를 써서 POST 요청 (토큰 알아서 들어감!)
       const result = await api('POST', '/api/projects', { name: newName.trim() })
-      
-      // 생성 후 최신 목록 다시 불러오기
       const updatedProjects = await api('GET', '/api/projects')
-      
       setProjects(updatedProjects.map(p => ({
         ...p,
-        members: [user.id],
+        members: p.members || [user.id],
         categories: [],
         posts: [],
         createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
       })))
-      
       const newProj = updatedProjects.find(p => p.id === result.id)
       setShowCreate(false)
       setNewName('')
-      
-      // 방금 만든 프로젝트로 바로 입장!
       if (newProj) {
-        navigateToProject({ ...newProj, members: [user.id], categories: [], posts: [], createdAt: Date.now() })
+        navigateToProject({ ...newProj, members: newProj.members || [user.id], categories: [], posts: [], createdAt: Date.now() })
       }
     } catch (e) {
       alert('프로젝트 생성에 실패했습니다')
-      console.error(e)
     }
   }
 
@@ -80,14 +71,13 @@ export default function ProjectsScreen({ user, projects, setProjects, navigateTo
         {projects.map((proj) => (
           <div key={proj.id} className="project-card" onClick={() => navigateToProject(proj)}>
             <div className="project-card-name">{proj.name}</div>
-            <div className="project-card-meta">{proj.members.length}명 · {fmtDate(proj.createdAt)}</div>
+            <div className="project-card-meta">{(proj.members || []).length}명 · {fmtDate(proj.createdAt)}</div>
             <div className="project-card-progress">
               <div className="project-card-progress-bar" style={{ width: `${getProgress(proj)}%` }} />
             </div>
             <div className="project-card-pct">진행률 {getProgress(proj)}%</div>
           </div>
         ))}
-        
         <div className="create-card" onClick={() => setShowCreate(true)}>
           <div className="create-icon">+</div>
           <div style={{ fontSize: 13, fontWeight: 600 }}>새 프로젝트 만들기</div>
