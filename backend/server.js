@@ -56,12 +56,13 @@ const db = mysql.createPool({
     connectionLimit: 10
 });
 
-db.connect((err) => {
+db.getConnection((err, conn) => {
     if (err) {
         console.error('MySQL 연결 오류:', err.message);
         return;
     }
     console.log('MySQL 데이터베이스 연결 성공');
+    conn.release(); // 연결 반환 필수!
 });
 
 // =====================================
@@ -377,9 +378,18 @@ app.get('/api/projects/:projectId/posts', authMiddleware, async (req, res) => {
         });
 
         const fullPosts = await Promise.all(posts.map(async (post) => {
-            const images   = await new Promise(resolve => db.query('...', [post.id], (err, rows) => resolve(rows || [])));
-            const likes    = await new Promise(resolve => db.query('...', [post.id], (err, rows) => resolve((rows || []).map(l => l.user_id))));
-            const comments = await new Promise(resolve => db.query('...', [post.id], (err, rows) => resolve(rows || [])));
+             const images   = await new Promise(resolve => db.query(
+                'SELECT id, file_name as name, file_size as size, file_type as type, file_url as src, is_image as isImg FROM post_files WHERE post_id = ?',
+                [post.id], (err, rows) => resolve(rows || [])
+            ));
+            const likes    = await new Promise(resolve => db.query(
+                'SELECT user_id FROM post_likes WHERE post_id = ?',
+                [post.id], (err, rows) => resolve((rows || []).map(l => l.user_id))
+            ));
+            const comments = await new Promise(resolve => db.query(
+                'SELECT id, author_id as authorId, content, created_at as timestamp FROM post_comments WHERE post_id = ? ORDER BY created_at ASC',
+                [post.id], (err, rows) => resolve(rows || [])
+            ));
 
             return {
                 id: post.id, authorId: post.author_id, content: post.content,
