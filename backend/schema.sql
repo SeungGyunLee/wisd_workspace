@@ -3,10 +3,11 @@ CREATE TABLE projects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    owner_id VARCHAR(36) -- 프로젝트 소유자 컬럼 (테이블 생성 시점에 아예 포함)
 );
 
--- 2. 할 일(Task) 테이블 생성 (기획안 반영 버전)
+-- 2. 할 일(Task) 테이블 생성 
 CREATE TABLE tasks (
     id INT AUTO_INCREMENT PRIMARY KEY, 
     project_id INT NOT NULL, 
@@ -19,16 +20,7 @@ CREATE TABLE tasks (
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
--- 3. 사용자(User) 테이블 생성 (인증 시스템용)
-CREATE TABLE users (
-    id VARCHAR(36) PRIMARY KEY,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    display_name VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 1. 게시글 테이블
+-- 3. 게시글 테이블
 CREATE TABLE posts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     project_id INT NOT NULL,
@@ -36,11 +28,11 @@ CREATE TABLE posts (
     content TEXT,
     category_tag INT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    -- ❌ FOREIGN KEY (author_id) REFERENCES users(id) 삭제됨
 );
 
--- 2. 첨부 파일/이미지 테이블
+-- 4. 첨부 파일/이미지 테이블 (이건 그대로 사용)
 CREATE TABLE post_files (
     id INT AUTO_INCREMENT PRIMARY KEY,
     post_id INT NOT NULL,
@@ -52,38 +44,32 @@ CREATE TABLE post_files (
     FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
 );
 
--- 3. 좋아요 테이블 (다대다 관계)
+-- 5. 좋아요 테이블
 CREATE TABLE post_likes (
     post_id INT NOT NULL,
     user_id VARCHAR(36) NOT NULL,
     PRIMARY KEY (post_id, user_id),
-    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+    -- ❌ FOREIGN KEY (user_id) REFERENCES users(id) 삭제됨
 );
 
--- 4. 댓글 테이블
+-- 6. 댓글 테이블
 CREATE TABLE post_comments (
     id INT AUTO_INCREMENT PRIMARY KEY,
     post_id INT NOT NULL,
     author_id VARCHAR(36) NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
-    FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+    -- ❌ FOREIGN KEY (author_id) REFERENCES users(id) 삭제됨
 );
 
--- 1. 기존 프로젝트 테이블에 소유자(owner_id) 컬럼 추가 (없을 경우)
-ALTER TABLE projects ADD COLUMN owner_id VARCHAR(36) AFTER description;
-
--- 2. 프로젝트 소유자 외래키 지정 (선택 사항)
-ALTER TABLE projects ADD FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
-
--- 3. 프로젝트 멤버 관리 테이블 (다대다 관계)
+-- 7. 프로젝트 멤버 관리 테이블
 CREATE TABLE project_members (
     project_id INT NOT NULL,
     user_id VARCHAR(36) NOT NULL,
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (project_id, user_id),
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    -- ❌ FOREIGN KEY (user_id) REFERENCES users(id) 삭제됨
 );
