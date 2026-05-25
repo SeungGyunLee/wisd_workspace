@@ -1,6 +1,3 @@
-// 로고 컴포넌트
-// light prop 넣으면 사이드바처럼 어두운 배경에서도 잘 보임
-
 export function WisdLogo({ size = 22, light = false }) {
   const col = light ? 'rgba(255,255,255,0.92)' : '#303030'
   return (
@@ -14,7 +11,7 @@ export function WisdLogo({ size = 22, light = false }) {
         letterSpacing="-1"
         fill={col}
       >
-        Wisd
+        크링
       </text>
     </svg>
   )
@@ -34,7 +31,7 @@ export function WisdIcon({ size = 30 }) {
         textAnchor="middle"
         letterSpacing="-1"
       >
-        W
+        C
       </text>
     </svg>
   )
