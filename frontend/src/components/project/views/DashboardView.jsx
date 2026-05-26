@@ -99,8 +99,7 @@ function PinnedTasks({ project, updateProject }) {
   )
 }
 
-export default function DashboardView({ project, setActiveView, updateProject }) {
-  const tasks = project.categories.flatMap((c) => c.tasks)
+export default function DashboardView({ project, updateProject, setScreen, user, users }) {  const tasks = project.categories.flatMap((c) => c.tasks)
   const pct = getProgress(project)
 
   return (
@@ -122,15 +121,19 @@ export default function DashboardView({ project, setActiveView, updateProject })
           <p style={{ marginBottom: 12 }}>
             {tasks.filter((t) => t.done).length} / {tasks.length}개 태스크 완료 · {project.categories.length}개 카테고리
           </p>
-          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-            {project.members.map((mid, i) => (
-              <div key={mid} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--hover)', padding: '4px 10px', borderRadius: 18, fontSize: 11, color: 'var(--dark)', border: '1px solid var(--border)' }}>
-                <div style={{ width: 18, height: 18, borderRadius: '50%', background: AVATAR_COLORS[i % AVATAR_COLORS.length], color: 'white', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {getInitials(mid)}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {project.members.map((mid, i) => {
+              const displayName = users?.find((u) => u.id === mid)?.name || (user?.id === mid ? user?.name : 'Member');
+
+              return (
+                <div key={mid} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'var(--hover)', padding: '4px 10px', borderRadius: 18, fontSize: 11, color: 'var(--dark)', border: '1px solid var(--border)' }}>
+                  <div style={{ width: 18, height: 18, borderRadius: '50%', background: AVATAR_COLORS[i % AVATAR_COLORS.length], color: 'white', fontSize: 8, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {getInitials(displayName)}
+                  </div>
+                  {displayName}
                 </div>
-                {mid}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
