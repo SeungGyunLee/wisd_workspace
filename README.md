@@ -1,7 +1,7 @@
 Kring (크링) 🚀
 "Collaboration Made Simple" - A lightweight workspace for project beginners.
 
-🌐 Live Demo
+[Live Demo](http://152.67.199.142:5173/)
 
 📝 Project Overview
 Kring is a zero-configuration collaborative workspace. We removed the complexity of professional tools like JIRA to help first-time project teams focus purely on their goals.
